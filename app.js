@@ -31,6 +31,7 @@ async function connectBLE(){
     let pass = prompt("Senha:");
 
     await ssidChar.writeValue(new TextEncoder().encode(ssid));
+    await new Promise(r => setTimeout(r, 300));
     await passChar.writeValue(new TextEncoder().encode(pass));
 
     alert("WiFi enviado!");
