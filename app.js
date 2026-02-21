@@ -3,7 +3,7 @@ let serverBLE;
 
 const SERVICE_UUID = "12345678-1234-1234-1234-123456789abc";
 const SSID_UUID = "abcd1234-1234-1234-1234-abcdef123456";
-const PASS_UUID = "abcd1234-1234-1234-1234-abcdef123456";
+const PASS_UUID = "abcd1234-1234-1234-1234-abcdef654321";
 
 function saveIP(){
   const ip = document.getElementById("ip").value;
