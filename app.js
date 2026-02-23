@@ -78,6 +78,7 @@ function finishPending() {
 }
 
 function updateConnectedState(connected) {
+  connectBtn.classList.toggle("hidden", connected);
   statusBtn.disabled = !connected;
   unpairBtn.disabled = !connected;
   saveBtn.disabled = !connected;
