@@ -1,6 +1,8 @@
 const BLE_SERVICE_UUID = "6f28d1a0-8f8d-4e35-b0d5-8e8d21d16a00";
-const BLE_RX_CHAR_UUID = "6f28d1a1-8f8d-4e35-b0d5-8e8d21d16a00"; // write
-const BLE_TX_CHAR_UUID = "6f28d1a2-8f8d-4e35-b0d5-8e8d21d16a00"; // notify/read
+const BLE_RX_CHAR_UUID = "6f28d1a1-8f8d-4e35-b0d5-8e8d21d16a00";
+const BLE_TX_CHAR_UUID = "6f28d1a2-8f8d-4e35-b0d5-8e8d21d16a00";
+const POLL_MS = 15000;
+const WIFI_OK_STATES = new Set(["connected", "idle"]);
 
 const connectBtn = document.getElementById("connectBtn");
 const statusBtn = document.getElementById("statusBtn");
@@ -11,6 +13,7 @@ const wifiForm = document.getElementById("wifiForm");
 const ssidInput = document.getElementById("ssid");
 const passwordInput = document.getElementById("password");
 const bleState = document.getElementById("bleState");
+const wifiAlert = document.getElementById("wifiAlert");
 const logBox = document.getElementById("logBox");
 const statusBox = document.getElementById("statusBox");
 
@@ -18,27 +21,36 @@ let bleDevice;
 let bleServer;
 let rxCharacteristic;
 let txCharacteristic;
+let pollTimer;
+let alertShown = false;
 
 function appendLog(message) {
   const time = new Date().toLocaleTimeString();
-  const line = `[${time}] ${message}\n`;
-  logBox.textContent += line;
+  logBox.textContent += `[${time}] ${message}\n`;
   logBox.scrollTop = logBox.scrollHeight;
 }
 
-function setConnectedState(connected) {
+function showWifiAlert(message) {
+  wifiAlert.textContent = message;
+  wifiAlert.classList.remove("hidden");
+}
+
+function hideWifiAlert() {
+  wifiAlert.textContent = "";
+  wifiAlert.classList.add("hidden");
+}
+
+function updateConnectedState(connected) {
   statusBtn.disabled = !connected;
   saveBtn.disabled = !connected;
   testBtn.disabled = !connected;
   clearBtn.disabled = !connected;
   bleState.textContent = connected ? "Conectado via BLE" : "Desconectado";
-}
-
-async function writeCommand(command) {
-  if (!rxCharacteristic) throw new Error("RX characteristic indisponível");
-  const payload = new TextEncoder().encode(command);
-  await rxCharacteristic.writeValue(payload);
-  appendLog(`TX > ${command}`);
+  if (!connected) {
+    stopStatusPolling();
+    hideWifiAlert();
+    alertShown = false;
+  }
 }
 
 function parseJsonSafe(text) {
@@ -49,10 +61,44 @@ function parseJsonSafe(text) {
   }
 }
 
-function renderStatus(obj) {
-  statusBox.textContent = JSON.stringify(obj, null, 2);
-  if (obj && obj.ssid) {
-    ssidInput.value = obj.ssid;
+function encodeCommand(payload) {
+  return new TextEncoder().encode(JSON.stringify(payload));
+}
+
+async function writeCommand(payload) {
+  if (!rxCharacteristic) throw new Error("RX characteristic indisponivel");
+  const json = JSON.stringify(payload);
+  await rxCharacteristic.writeValue(encodeCommand(payload));
+  appendLog(`TX > ${json}`);
+}
+
+function shouldWarnStatus(status) {
+  if (!status || status.type !== "status") return false;
+  if (!status.wifiConfigured) return true;
+  return !WIFI_OK_STATES.has(status.wifiState);
+}
+
+function statusWarningMessage(status) {
+  if (!status.wifiConfigured) {
+    return "Wi-Fi nao configurado. Informe SSID e senha para continuar.";
+  }
+  return `Wi-Fi com problema (${status.wifiState}). Reconfigure a rede para voltar a operar.`;
+}
+
+function renderStatus(status) {
+  statusBox.textContent = JSON.stringify(status, null, 2);
+  if (status.ssid) ssidInput.value = status.ssid;
+
+  if (shouldWarnStatus(status)) {
+    const message = statusWarningMessage(status);
+    showWifiAlert(message);
+    if (!alertShown) {
+      alertShown = true;
+      window.alert(message);
+    }
+  } else {
+    hideWifiAlert();
+    alertShown = false;
   }
 }
 
@@ -64,9 +110,27 @@ function onBleNotify(event) {
   if (msg.type === "status") renderStatus(msg);
 }
 
+function stopStatusPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function startStatusPolling() {
+  stopStatusPolling();
+  pollTimer = setInterval(() => {
+    if (rxCharacteristic) {
+      writeCommand({ cmd: "get_status" }).catch((error) => {
+        appendLog(`Erro no poll: ${error.message}`);
+      });
+    }
+  }, POLL_MS);
+}
+
 async function connectBle() {
   if (!navigator.bluetooth) {
-    throw new Error("Seu navegador não suporta Web Bluetooth");
+    throw new Error("Seu navegador nao suporta Web Bluetooth");
   }
 
   bleDevice = await navigator.bluetooth.requestDevice({
@@ -76,7 +140,9 @@ async function connectBle() {
 
   bleDevice.addEventListener("gattserverdisconnected", () => {
     appendLog("BLE desconectado");
-    setConnectedState(false);
+    updateConnectedState(false);
+    rxCharacteristic = null;
+    txCharacteristic = null;
   });
 
   bleServer = await bleDevice.gatt.connect();
@@ -87,15 +153,16 @@ async function connectBle() {
   await txCharacteristic.startNotifications();
   txCharacteristic.addEventListener("characteristicvaluechanged", onBleNotify);
 
-  setConnectedState(true);
+  updateConnectedState(true);
+  startStatusPolling();
   appendLog(`Conectado ao dispositivo: ${bleDevice.name || "sem nome"}`);
-  await writeCommand("GET_STATUS");
+  await writeCommand({ cmd: "get_status" });
 }
 
 async function clearWifi() {
   const ok = window.confirm("Remover SSID/senha salvos da placa?");
   if (!ok) return;
-  await writeCommand("CLEAR_WIFI");
+  await writeCommand({ cmd: "clear_wifi" });
 }
 
 connectBtn.addEventListener("click", async () => {
@@ -103,7 +170,7 @@ connectBtn.addEventListener("click", async () => {
     connectBtn.disabled = true;
     await connectBle();
   } catch (error) {
-    appendLog(`Erro de conexão: ${error.message}`);
+    appendLog(`Erro de conexao: ${error.message}`);
   } finally {
     connectBtn.disabled = false;
   }
@@ -111,7 +178,7 @@ connectBtn.addEventListener("click", async () => {
 
 statusBtn.addEventListener("click", async () => {
   try {
-    await writeCommand("GET_STATUS");
+    await writeCommand({ cmd: "get_status" });
   } catch (error) {
     appendLog(`Erro: ${error.message}`);
   }
@@ -119,7 +186,7 @@ statusBtn.addEventListener("click", async () => {
 
 testBtn.addEventListener("click", async () => {
   try {
-    await writeCommand("TEST_WIFI");
+    await writeCommand({ cmd: "test_wifi" });
   } catch (error) {
     appendLog(`Erro: ${error.message}`);
   }
@@ -139,13 +206,12 @@ wifiForm.addEventListener("submit", async (event) => {
   const ssid = ssidInput.value.trim();
   const pass = passwordInput.value;
   if (!ssid) {
-    appendLog("SSID obrigatório");
+    appendLog("SSID obrigatorio");
     return;
   }
 
-  const cmd = `SET_WIFI;ssid=${ssid};pass=${pass}`;
   try {
-    await writeCommand(cmd);
+    await writeCommand({ cmd: "set_wifi", ssid, pass });
   } catch (error) {
     appendLog(`Erro: ${error.message}`);
   }
@@ -159,4 +225,4 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-setConnectedState(false);
+updateConnectedState(false);
