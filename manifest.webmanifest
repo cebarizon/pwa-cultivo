@@ -1,0 +1,23 @@
+{
+  "name": "KC868 Wi-Fi Setup",
+  "short_name": "KC868 Setup",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#e6f5f4",
+  "theme_color": "#0f766e",
+  "description": "Provisionamento Wi-Fi da placa Kincony KC868-A6 via BLE.",
+  "icons": [
+    {
+      "src": "./icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

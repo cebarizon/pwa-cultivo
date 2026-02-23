@@ -1,58 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Controle Cultivo</title>
-
-  <link rel="manifest" href="manifest.json">
-
-  <style>
-    body{
-      font-family: Arial;
-      background:#0f172a;
-      color:white;
-      text-align:center;
-      padding:20px;
-    }
-
-    button{
-      width:90%;
-      max-width:300px;
-      padding:15px;
-      margin:10px;
-      font-size:18px;
-      border:none;
-      border-radius:12px;
-      background:#1e293b;
-      color:white;
-    }
-
-    .on{
-      background:#22c55e;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>KC868 Wi-Fi Setup</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
-
 <body>
+  <main class="app">
+    <header class="hero">
+      <p class="kicker">KINCONY KC868-A6-V1 4SP</p>
+      <h1>Configuração Wi-Fi via Bluetooth</h1>
+      <p class="subtitle">PWA para provisionar SSID/senha e validar conexão da placa.</p>
+    </header>
 
-<h2>🌱 Automação Cultivo</h2>
+    <section class="card">
+      <div class="row">
+        <button id="connectBtn" type="button">Conectar Bluetooth</button>
+        <button id="statusBtn" type="button" disabled>Atualizar Status</button>
+      </div>
+      <p id="bleState" class="state">Desconectado</p>
+    </section>
 
-<button onclick="connectBLE()">🔵 Configurar Wi-Fi (Bluetooth)</button>
+    <section class="card">
+      <h2>Wi-Fi</h2>
+      <form id="wifiForm">
+        <label for="ssid">SSID</label>
+        <input id="ssid" name="ssid" required maxlength="64" autocomplete="off" />
 
-<br><br>
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" maxlength="64" />
 
-<input id="ip" placeholder="IP do ESP32">
-<br>
-<button onclick="saveIP()">Salvar IP</button>
+        <div class="row">
+          <button id="saveBtn" type="submit" disabled>Salvar e Conectar</button>
+          <button id="testBtn" type="button" disabled>Testar Wi-Fi</button>
+          <button id="clearBtn" type="button" class="secondary" disabled>Limpar</button>
+        </div>
+      </form>
+    </section>
 
-<hr>
+    <section class="card">
+      <h2>Último Status</h2>
+      <pre id="statusBox">Sem dados</pre>
+    </section>
 
-<button id="btn" onclick="toggleRelay()">Relé</button>
-
-<script src="app.js"></script>
-
+    <section class="card">
+      <h2>Log BLE</h2>
+      <pre id="logBox"></pre>
+    </section>
+  </main>
+  <script src="./app.js" type="module"></script>
 </body>
 </html>

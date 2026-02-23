@@ -1,0 +1,132 @@
+:root {
+  color-scheme: light;
+  --bg: #e6f5f4;
+  --card: #ffffff;
+  --text: #102a2c;
+  --muted: #4b6163;
+  --primary: #0f766e;
+  --primary-strong: #0a5f58;
+  --border: #c8dfdd;
+  --danger: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top right, #c7f0ed, transparent 45%),
+    radial-gradient(circle at bottom left, #d6ece9, transparent 50%),
+    var(--bg);
+}
+
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 1.8rem;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.subtitle {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+button:hover:enabled {
+  background: var(--primary-strong);
+}
+
+button.secondary {
+  background: #fff5f3;
+  color: var(--danger);
+  border: 1px solid #ffd6d1;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.state {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f4f8f8;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  min-height: 56px;
+  max-height: 250px;
+  overflow: auto;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 14px;
+  }
+
+  .hero h1 {
+    font-size: 1.45rem;
+  }
+}
