@@ -114,6 +114,16 @@ button:disabled {
   font-size: 0.92rem;
 }
 
+.loading {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid #bfe3df;
+  border-radius: 8px;
+  background: #eefaf8;
+  color: #0a5f58;
+  font-weight: 600;
+}
+
 .alert {
   margin: 10px 0 0;
   padding: 9px 10px;
@@ -126,6 +136,22 @@ button:disabled {
 
 .hidden {
   display: none;
+}
+
+.wifi-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ssid-pill {
+  margin: 0;
+  display: inline-block;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f4f8f8;
+  font-weight: 700;
 }
 
 pre {
