@@ -6,6 +6,7 @@ const WIFI_OK_STATES = new Set(["connected", "idle"]);
 
 const connectBtn = document.getElementById("connectBtn");
 const statusBtn = document.getElementById("statusBtn");
+const unpairBtn = document.getElementById("unpairBtn");
 const saveBtn = document.getElementById("saveBtn");
 const clearBtn = document.getElementById("clearBtn");
 const wifiForm = document.getElementById("wifiForm");
@@ -78,6 +79,7 @@ function finishPending() {
 
 function updateConnectedState(connected) {
   statusBtn.disabled = !connected;
+  unpairBtn.disabled = !connected;
   saveBtn.disabled = !connected;
   clearBtn.disabled = !connected;
   bleState.textContent = connected ? "Conectado via BLE" : "Desconectado";
@@ -227,6 +229,15 @@ async function clearWifi() {
   await writeCommand({ cmd: "clear_wifi" });
 }
 
+function disconnectBle() {
+  if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+    bleDevice.gatt.disconnect();
+  }
+  rxCharacteristic = null;
+  txCharacteristic = null;
+  updateConnectedState(false);
+}
+
 connectBtn.addEventListener("click", async () => {
   try {
     connectBtn.disabled = true;
@@ -239,6 +250,14 @@ connectBtn.addEventListener("click", async () => {
   } finally {
     connectBtn.disabled = false;
   }
+});
+
+unpairBtn.addEventListener("click", () => {
+  disconnectBle();
+  appendLog("Conexao BLE encerrada");
+  window.alert(
+    "A desconexao foi feita. Para desparear completamente, remova o dispositivo KC868-A6-Setup nas configuracoes Bluetooth do sistema."
+  );
 });
 
 statusBtn.addEventListener("click", async () => {
