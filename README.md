@@ -4,8 +4,10 @@
 - Conecta na placa por Web Bluetooth (BLE).
 - Lê status atual do Wi-Fi automaticamente (polling a cada 15s).
 - Mostra alerta quando o Wi-Fi estiver sem configuracao ou com falha.
+- Mostra dois estados de interface:
+  - Wi-Fi configurado: exibe SSID atual e botao para limpar configuracao.
+  - Wi-Fi nao configurado: exibe formulario para configurar SSID/senha.
 - Envia SSID/senha para a placa.
-- Testa conexao Wi-Fi.
 - Limpa credenciais salvas.
 
 ## Seguranca BLE
