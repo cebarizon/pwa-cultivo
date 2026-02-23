@@ -13,6 +13,8 @@
 ## Seguranca BLE
 - Pareamento BLE com passkey fixa: `123456`.
 - O SO/navegador pode solicitar confirmacao durante o pareamento.
+- O botao `Desparear Bluetooth` no PWA desconecta a sessao BLE.
+- O despareamento completo deve ser feito nas configuracoes Bluetooth do sistema operacional.
 
 ## UUIDs usados (iguais ao firmware)
 - Service: `6f28d1a0-8f8d-4e35-b0d5-8e8d21d16a00`
