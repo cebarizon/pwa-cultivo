@@ -154,6 +154,40 @@ button:disabled {
   font-weight: 700;
 }
 
+.relay-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.relay-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fbfb;
+}
+
+.relay-item span {
+  font-weight: 600;
+}
+
+.relay-btn {
+  min-width: 96px;
+}
+
+.relay-btn.on {
+  background: #117a4f;
+}
+
+.relay-btn.off {
+  background: #6b7280;
+}
+
 pre {
   margin: 0;
   white-space: pre-wrap;
