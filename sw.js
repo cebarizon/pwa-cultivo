@@ -1,6 +1,5 @@
 const CACHE_NAME = "kc868-pwa-v2";
 const ASSETS = [
-  "./",
   "./index.html",
   "./styles.css",
   "./app.js",
@@ -11,7 +10,16 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const asset of ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (error) {
+          // Keep install alive even if one static file fails.
+          console.warn("SW cache skip:", asset, error);
+        }
+      }
+    })
   );
   self.skipWaiting();
 });
