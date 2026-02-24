@@ -49,6 +49,7 @@ let txCharacteristic;
 let pollTimer;
 let pendingTimer = null;
 const chunkBuffer = new Map();
+let lastStatus = null;
 
 const socketState = Array.from({ length: 4 }, (_, idx) => ({
   index: idx + 1,
@@ -332,10 +333,18 @@ function updateClockLabel(clock) {
     clockState.textContent = "Relogio nao sincronizado";
     return;
   }
-  clockState.textContent = `Hora da placa: ${clock.time}`;
+  const sourceMap = {
+    ntp: "NTP",
+    rtc: "RTC",
+    manual: "Manual",
+    persisted: "Persistido"
+  };
+  const sourceLabel = sourceMap[clock.source] || "Indefinido";
+  clockState.textContent = `Hora da placa: ${clock.time} (${sourceLabel})`;
 }
 
 function renderStatus(status) {
+  lastStatus = status;
   statusBox.textContent = JSON.stringify(status, null, 2);
   renderWifiMode(status);
   renderTank(status);
@@ -376,6 +385,10 @@ function handleIncomingBlePayload(incoming) {
       clockState.textContent = "Relogio sincronizado (atualizando...)";
     } else if (msg.action === "set_clock" && !msg.ok) {
       clockState.textContent = "Falha ao sincronizar relogio";
+    } else if (msg.action === "sync_clock_ntp" && !msg.ok) {
+      clockState.textContent = "NTP indisponivel, tentando RTC/manual...";
+    } else if (msg.action === "sync_clock_rtc" && !msg.ok) {
+      clockState.textContent = "RTC indisponivel, aplicando hora manual...";
     }
     clearLoading();
   }
@@ -430,12 +443,30 @@ function browserDayNumber() {
   return Math.floor(localMs / 86400000);
 }
 
+function delayMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function syncClock() {
   const time = browserTimeHHMM();
   const day = browserDayNumber();
-  appendLog(`Sincronizando hora local ${time} (dia ${day})`);
+  appendLog(`Sincronizando hora (NTP > RTC > manual) ${time} (dia ${day})`);
+
+  await writeCommand({ cmd: "sync_clock_ntp" });
+  await delayMs(220);
+  await readTxOnce();
+  await requestStatus();
+  if (lastStatus?.clock?.synced && lastStatus.clock.source === "ntp") return;
+
+  await writeCommand({ cmd: "sync_clock_rtc" });
+  await delayMs(220);
+  await readTxOnce();
+  await requestStatus();
+  if (lastStatus?.clock?.synced && lastStatus.clock.source === "rtc") return;
+
   await writeCommand({ cmd: "set_clock", time, day: String(day) });
-  setTimeout(() => { readTxOnce(); }, 140);
+  await delayMs(140);
+  await readTxOnce();
 }
 
 async function connectBle() {
