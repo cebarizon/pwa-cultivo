@@ -2,10 +2,10 @@ const BLE_SERVICE_UUID = "6f28d1a0-8f8d-4e35-b0d5-8e8d21d16a00";
 const BLE_RX_CHAR_UUID = "6f28d1a1-8f8d-4e35-b0d5-8e8d21d16a00";
 const BLE_TX_CHAR_UUID = "6f28d1a2-8f8d-4e35-b0d5-8e8d21d16a00";
 const POLL_MS = 15000;
-const WIFI_OK_STATES = new Set(["connected", "idle"]);
 
 const connectBtn = document.getElementById("connectBtn");
 const statusBtn = document.getElementById("statusBtn");
+const syncClockBtn = document.getElementById("syncClockBtn");
 const unpairBtn = document.getElementById("unpairBtn");
 const saveBtn = document.getElementById("saveBtn");
 const clearBtn = document.getElementById("clearBtn");
@@ -15,23 +15,47 @@ const passwordInput = document.getElementById("password");
 const wifiConfiguredBox = document.getElementById("wifiConfiguredBox");
 const wifiConfigBox = document.getElementById("wifiConfigBox");
 const configuredSsid = document.getElementById("configuredSsid");
-const relayInfo = document.getElementById("relayInfo");
-const relayButtons = Array.from(document.querySelectorAll(".relay-btn"));
 const bleState = document.getElementById("bleState");
+const clockState = document.getElementById("clockState");
 const wifiAlert = document.getElementById("wifiAlert");
 const loadingBox = document.getElementById("loadingBox");
-const logBox = document.getElementById("logBox");
 const statusBox = document.getElementById("statusBox");
+const logBox = document.getElementById("logBox");
+
+const irrigationRows = document.getElementById("irrigationRows");
+const addIrrigationRowBtn = document.getElementById("addIrrigationRowBtn");
+const saveIrrigationBtn = document.getElementById("saveIrrigationBtn");
+const oxygenationLeadInput = document.getElementById("oxygenationLeadInput");
+const saveOxygenationLeadBtn = document.getElementById("saveOxygenationLeadBtn");
+const manualIrrigationMinutes = document.getElementById("manualIrrigationMinutes");
+const startManualIrrigationBtn = document.getElementById("startManualIrrigationBtn");
+const hum1Value = document.getElementById("hum1Value");
+const hum2Value = document.getElementById("hum2Value");
+
+const phValue = document.getElementById("phValue");
+const ecAbsValue = document.getElementById("ecAbsValue");
+const ecRelValue = document.getElementById("ecRelValue");
+const a1Value = document.getElementById("a1Value");
+const a2Value = document.getElementById("a2Value");
+const zeroEcBtn = document.getElementById("zeroEcBtn");
+const manualOxyMinutes = document.getElementById("manualOxyMinutes");
+const startManualOxyBtn = document.getElementById("startManualOxyBtn");
+
+const socketCards = document.getElementById("socketCards");
 
 let bleDevice;
 let bleServer;
 let rxCharacteristic;
 let txCharacteristic;
 let pollTimer;
-let alertShown = false;
-let pendingAction = "";
 let pendingTimer = null;
-let relayStates = [false, false, false, false, false, false];
+let hasLoadedInitialConfig = false;
+
+const socketState = Array.from({ length: 4 }, (_, idx) => ({
+  index: idx + 1,
+  enabled: false,
+  rows: []
+}));
 
 function appendLog(message) {
   const time = new Date().toLocaleTimeString();
@@ -52,95 +76,40 @@ function hideWifiAlert() {
 function setLoading(message) {
   loadingBox.textContent = message;
   loadingBox.classList.remove("hidden");
+  if (pendingTimer) clearTimeout(pendingTimer);
+  pendingTimer = setTimeout(() => {
+    clearLoading();
+    appendLog("Operacao demorou mais que o esperado");
+  }, 30000);
 }
 
 function clearLoading() {
   loadingBox.textContent = "";
   loadingBox.classList.add("hidden");
-}
-
-function startPending(action, message, timeoutMs = 25000) {
-  pendingAction = action;
-  setLoading(message);
-  if (pendingTimer) clearTimeout(pendingTimer);
-  pendingTimer = setTimeout(() => {
-    appendLog(`Tempo limite da operacao: ${action}`);
-    pendingAction = "";
-    pendingTimer = null;
-    clearLoading();
-  }, timeoutMs);
-}
-
-function finishPending() {
-  pendingAction = "";
   if (pendingTimer) {
     clearTimeout(pendingTimer);
     pendingTimer = null;
   }
-  clearLoading();
 }
 
 function updateConnectedState(connected) {
   connectBtn.classList.toggle("hidden", connected);
   statusBtn.disabled = !connected;
+  syncClockBtn.disabled = !connected;
   unpairBtn.disabled = !connected;
   saveBtn.disabled = !connected;
   clearBtn.disabled = !connected;
+  addIrrigationRowBtn.disabled = !connected;
+  saveIrrigationBtn.disabled = !connected;
+  saveOxygenationLeadBtn.disabled = !connected;
+  startManualIrrigationBtn.disabled = !connected;
+  zeroEcBtn.disabled = !connected;
+  startManualOxyBtn.disabled = !connected;
   bleState.textContent = connected ? "Conectado via BLE" : "Desconectado";
-  if (!connected) {
-    stopStatusPolling();
-    hideWifiAlert();
-    alertShown = false;
-    finishPending();
-    relayInfo.textContent = "Aguardando status da placa...";
-    relayButtons.forEach((button) => {
-      button.disabled = true;
-      button.textContent = "Desligado";
-      button.classList.remove("on");
-      button.classList.add("off");
-    });
-  }
-}
 
-function renderWifiMode(status) {
-  const configured = Boolean(status && status.wifiConfigured);
-  if (configured) {
-    wifiConfiguredBox.classList.remove("hidden");
-    wifiConfigBox.classList.add("hidden");
-    configuredSsid.textContent = status.ssid || "(SSID nao informado)";
-    return;
-  }
-
-  wifiConfiguredBox.classList.add("hidden");
-  wifiConfigBox.classList.remove("hidden");
-}
-
-function setRelayButtonVisual(button, isOn) {
-  button.textContent = isOn ? "Ligado" : "Desligado";
-  button.classList.toggle("on", isOn);
-  button.classList.toggle("off", !isOn);
-}
-
-function renderRelays(status) {
-  const ready = Boolean(status && status.relayReady);
-  const list = Array.isArray(status && status.relays) ? status.relays : [];
-
-  if (!ready) {
-    relayInfo.textContent = "Expansor de relés indisponível no momento.";
-    relayButtons.forEach((button, idx) => {
-      button.disabled = true;
-      relayStates[idx] = false;
-      setRelayButtonVisual(button, false);
-    });
-    return;
-  }
-
-  relayInfo.textContent = "Toque para alternar o estado de cada relé.";
-  relayButtons.forEach((button, idx) => {
-    const isOn = Boolean(list[idx]);
-    relayStates[idx] = isOn;
-    button.disabled = !rxCharacteristic;
-    setRelayButtonVisual(button, isOn);
+  const socketButtons = document.querySelectorAll("[data-socket-action]");
+  socketButtons.forEach((btn) => {
+    btn.disabled = !connected;
   });
 }
 
@@ -152,46 +121,203 @@ function parseJsonSafe(text) {
   }
 }
 
-function encodeCommand(payload) {
-  return new TextEncoder().encode(JSON.stringify(payload));
-}
-
 async function writeCommand(payload) {
   if (!rxCharacteristic) throw new Error("RX characteristic indisponivel");
   const json = JSON.stringify(payload);
-  await rxCharacteristic.writeValue(encodeCommand(payload));
+  await rxCharacteristic.writeValue(new TextEncoder().encode(json));
   appendLog(`TX > ${json}`);
 }
 
-function shouldWarnStatus(status) {
-  if (!status || status.type !== "status") return false;
-  if (!status.wifiConfigured) return true;
-  return !WIFI_OK_STATES.has(status.wifiState);
+function renderWifiMode(status) {
+  if (status.wifiConfigured) {
+    wifiConfiguredBox.classList.remove("hidden");
+    wifiConfigBox.classList.add("hidden");
+    configuredSsid.textContent = status.ssid || "(SSID nao informado)";
+  } else {
+    wifiConfiguredBox.classList.add("hidden");
+    wifiConfigBox.classList.remove("hidden");
+  }
+
+  if (!status.wifiConfigured) {
+    showWifiAlert("Wi-Fi nao configurado. Configure para habilitar sincronismo de hora.");
+    return;
+  }
+  if (status.wifiState !== "connected") {
+    showWifiAlert(`Wi-Fi com problema (${status.wifiState}).`);
+    return;
+  }
+  hideWifiAlert();
 }
 
-function statusWarningMessage(status) {
-  if (!status.wifiConfigured) {
-    return "Wi-Fi nao configurado. Informe SSID e senha para continuar.";
+function renderTank(status) {
+  const tank = status.tank || {};
+  hum1Value.textContent = `${Number(tank.hum1 || 0).toFixed(1)} %`;
+  hum2Value.textContent = `${Number(tank.hum2 || 0).toFixed(1)} %`;
+  phValue.textContent = Number(tank.ph || 0).toFixed(2);
+  ecAbsValue.textContent = Number(tank.ecAbs || 0).toFixed(3);
+  ecRelValue.textContent = Number(tank.ecRel || 0).toFixed(3);
+  a1Value.textContent = Number(tank.a1V || 0).toFixed(3);
+  a2Value.textContent = Number(tank.a2V || 0).toFixed(3);
+}
+
+function createIrrigationRow(start = "00:00", minutes = 1, enabled = true) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>
+      <input type="time" value="${start}" class="irr-start" />
+      <label class="socket-enable"><input type="checkbox" class="irr-enabled" ${enabled ? "checked" : ""}/> ativo</label>
+    </td>
+    <td>
+      <input type="number" min="0" max="720" value="${minutes}" class="irr-minutes" />
+    </td>
+  `;
+  return tr;
+}
+
+function renderIrrigationRows(entries = []) {
+  irrigationRows.innerHTML = "";
+  const list = entries.slice(0, 24);
+  if (!list.length) {
+    irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
+    return;
   }
-  return `Wi-Fi com problema (${status.wifiState}). Reconfigure a rede para voltar a operar.`;
+  list.forEach((entry) => {
+    irrigationRows.appendChild(
+      createIrrigationRow(entry.start || "00:00", Number(entry.minutes || 0), Boolean(entry.enabled))
+    );
+  });
+}
+
+function collectIrrigationRows() {
+  const starts = Array.from(irrigationRows.querySelectorAll(".irr-start"));
+  const minutes = Array.from(irrigationRows.querySelectorAll(".irr-minutes"));
+  const enabled = Array.from(irrigationRows.querySelectorAll(".irr-enabled"));
+  const out = [];
+
+  for (let i = 0; i < starts.length && i < 24; i += 1) {
+    const start = starts[i].value || "00:00";
+    const mins = Number(minutes[i].value || 0);
+    out.push({
+      index: i + 1,
+      enabled: Boolean(enabled[i].checked),
+      start,
+      minutes: Math.max(0, Math.min(720, mins))
+    });
+  }
+  return out;
+}
+
+function createSocketRow(row = {}) {
+  const tr = document.createElement("tr");
+  const safeTitle = String(row.title || "").replace(/"/g, "&quot;");
+  tr.innerHTML = `
+    <td><input type="text" class="socket-title-input" maxlength="32" value="${safeTitle}" placeholder="Titulo" /></td>
+    <td><input type="time" class="socket-start-input" value="${row.start || "00:00"}" /></td>
+    <td><input type="time" class="socket-end-input" value="${row.end || "00:00"}" /></td>
+    <td><label class="socket-enable"><input type="checkbox" class="socket-row-enabled" ${row.enabled ? "checked" : ""}/> ativo</label></td>
+  `;
+  return tr;
+}
+
+function renderSocketCards() {
+  socketCards.innerHTML = "";
+
+  socketState.forEach((socket) => {
+    const card = document.createElement("div");
+    card.className = "socket-card";
+    card.dataset.socket = String(socket.index);
+    card.innerHTML = `
+      <div class="socket-title">
+        <span class="socket-badge">Tomada ${socket.index} (Rele ${socket.index + 2})</span>
+        <label class="socket-enable">
+          <input type="checkbox" class="socket-enabled-main" ${socket.enabled ? "checked" : ""} />
+          habilitar tomada
+        </label>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr><th>Titulo</th><th>Hora inicio</th><th>Hora fim</th><th>Ativa</th></tr>
+        </thead>
+        <tbody class="socket-rows"></tbody>
+      </table>
+      <div class="row">
+        <button type="button" data-socket-action="add" data-socket="${socket.index}" disabled>Adicionar linha</button>
+        <button type="button" data-socket-action="save" data-socket="${socket.index}" disabled>Salvar tomada ${socket.index}</button>
+      </div>
+    `;
+
+    const tbody = card.querySelector(".socket-rows");
+    const list = (socket.rows || []).slice(0, 24);
+    if (!list.length) {
+      tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
+    } else {
+      list.forEach((row) => tbody.appendChild(createSocketRow(row)));
+    }
+
+    socketCards.appendChild(card);
+  });
+}
+
+function syncSocketStateFromStatus(status) {
+  const sockets = status.sockets || {};
+  const enabled = Array.isArray(sockets.enabled) ? sockets.enabled : [false, false, false, false];
+  const map = [sockets.s1 || [], sockets.s2 || [], sockets.s3 || [], sockets.s4 || []];
+
+  socketState.forEach((socket, idx) => {
+    socket.enabled = Boolean(enabled[idx]);
+    socket.rows = Array.isArray(map[idx]) ? map[idx].slice(0, 24) : [];
+  });
+}
+
+function collectSocketRows(socketIndex) {
+  const card = socketCards.querySelector(`.socket-card[data-socket="${socketIndex}"]`);
+  if (!card) return { enabled: false, rows: [] };
+
+  const enabledMain = card.querySelector(".socket-enabled-main");
+  const titles = Array.from(card.querySelectorAll(".socket-title-input"));
+  const starts = Array.from(card.querySelectorAll(".socket-start-input"));
+  const ends = Array.from(card.querySelectorAll(".socket-end-input"));
+  const enabledRows = Array.from(card.querySelectorAll(".socket-row-enabled"));
+
+  const rows = [];
+  for (let i = 0; i < titles.length && i < 24; i += 1) {
+    rows.push({
+      index: i + 1,
+      title: titles[i].value || "",
+      start: starts[i].value || "00:00",
+      end: ends[i].value || "00:00",
+      enabled: Boolean(enabledRows[i].checked)
+    });
+  }
+
+  return {
+    enabled: Boolean(enabledMain.checked),
+    rows
+  };
+}
+
+function updateClockLabel(clock) {
+  if (!clock || !clock.synced) {
+    clockState.textContent = "Relogio nao sincronizado";
+    return;
+  }
+  clockState.textContent = `Hora da placa: ${clock.time}`;
 }
 
 function renderStatus(status) {
   statusBox.textContent = JSON.stringify(status, null, 2);
   renderWifiMode(status);
-  renderRelays(status);
-  if (status.ssid) ssidInput.value = status.ssid;
+  renderTank(status);
+  updateClockLabel(status.clock);
 
-  if (shouldWarnStatus(status)) {
-    const message = statusWarningMessage(status);
-    showWifiAlert(message);
-    if (!alertShown) {
-      alertShown = true;
-      window.alert(message);
-    }
-  } else {
-    hideWifiAlert();
-    alertShown = false;
+  if (!hasLoadedInitialConfig) {
+    const irrigation = status.irrigation || {};
+    oxygenationLeadInput.value = String(Number(irrigation.oxygenationLeadMin || 0));
+    renderIrrigationRows(Array.isArray(irrigation.entries) ? irrigation.entries : []);
+    syncSocketStateFromStatus(status);
+    renderSocketCards();
+    hasLoadedInitialConfig = true;
+    updateConnectedState(Boolean(rxCharacteristic));
   }
 }
 
@@ -202,20 +328,10 @@ function onBleNotify(event) {
   if (!msg) return;
   if (msg.type === "status") {
     renderStatus(msg);
-    if (pendingAction === "get_status" || pendingAction === "set_wifi") finishPending();
-    return;
+    clearLoading();
   }
-
   if (msg.type === "result") {
-    if (pendingAction === "set_wifi" && (msg.action === "wifi_connect" || (msg.action === "set_wifi" && !msg.ok))) {
-      finishPending();
-    }
-    if (pendingAction === "clear_wifi" && msg.action === "clear_wifi") {
-      finishPending();
-    }
-    if (pendingAction.startsWith("relay_") && msg.action === "set_relay") {
-      finishPending();
-    }
+    clearLoading();
   }
 }
 
@@ -229,18 +345,24 @@ function stopStatusPolling() {
 function startStatusPolling() {
   stopStatusPolling();
   pollTimer = setInterval(() => {
-    if (rxCharacteristic) {
-      writeCommand({ cmd: "get_status" }).catch((error) => {
-        appendLog(`Erro no poll: ${error.message}`);
-      });
-    }
+    if (!rxCharacteristic) return;
+    writeCommand({ cmd: "get_status" }).catch((error) => appendLog(`Erro no poll: ${error.message}`));
   }, POLL_MS);
 }
 
+function browserTimeHHMM() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+async function syncClock() {
+  await writeCommand({ cmd: "set_clock", time: browserTimeHHMM() });
+}
+
 async function connectBle() {
-  if (!navigator.bluetooth) {
-    throw new Error("Seu navegador nao suporta Web Bluetooth");
-  }
+  if (!navigator.bluetooth) throw new Error("Seu navegador nao suporta Web Bluetooth");
 
   bleDevice = await navigator.bluetooth.requestDevice({
     filters: [{ namePrefix: "KC868-A6" }],
@@ -249,9 +371,10 @@ async function connectBle() {
 
   bleDevice.addEventListener("gattserverdisconnected", () => {
     appendLog("BLE desconectado");
-    updateConnectedState(false);
     rxCharacteristic = null;
     txCharacteristic = null;
+    updateConnectedState(false);
+    stopStatusPolling();
   });
 
   bleServer = await bleDevice.gatt.connect();
@@ -265,105 +388,221 @@ async function connectBle() {
   updateConnectedState(true);
   startStatusPolling();
   appendLog(`Conectado ao dispositivo: ${bleDevice.name || "sem nome"}`);
-  startPending("get_status", "Lendo status da placa...");
+  setLoading("Sincronizando hora e status...");
+  await syncClock();
   await writeCommand({ cmd: "get_status" });
 }
 
-async function clearWifi() {
-  await writeCommand({ cmd: "clear_wifi" });
-}
-
 function disconnectBle() {
-  if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
-    bleDevice.gatt.disconnect();
-  }
+  if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
   rxCharacteristic = null;
   txCharacteristic = null;
   updateConnectedState(false);
+  stopStatusPolling();
+}
+
+async function saveIrrigationSchedule() {
+  const rows = collectIrrigationRows();
+  setLoading("Salvando programacao de irrigacao...");
+  await writeCommand({ cmd: "clear_irrigation_entries" });
+  for (const row of rows) {
+    await writeCommand({
+      cmd: "set_irrigation_entry",
+      index: String(row.index),
+      enabled: row.enabled ? "true" : "false",
+      start: row.start,
+      minutes: String(row.minutes)
+    });
+  }
+  await writeCommand({ cmd: "get_status" });
+}
+
+async function saveSocket(socketIndex) {
+  const data = collectSocketRows(socketIndex);
+  setLoading(`Salvando tomada ${socketIndex}...`);
+  await writeCommand({
+    cmd: "set_socket_enabled",
+    socket: String(socketIndex),
+    enabled: data.enabled ? "true" : "false"
+  });
+  await writeCommand({ cmd: "clear_socket_entries", socket: String(socketIndex) });
+  for (const row of data.rows) {
+    await writeCommand({
+      cmd: "set_socket_entry",
+      socket: String(socketIndex),
+      index: String(row.index),
+      enabled: row.enabled ? "true" : "false",
+      title: row.title,
+      start: row.start,
+      end: row.end
+    });
+  }
+  await writeCommand({ cmd: "get_status" });
 }
 
 connectBtn.addEventListener("click", async () => {
   try {
     connectBtn.disabled = true;
-    startPending("connect_ble", "Conectando via Bluetooth...");
     await connectBle();
-    if (pendingAction === "connect_ble") finishPending();
   } catch (error) {
-    finishPending();
+    clearLoading();
     appendLog(`Erro de conexao: ${error.message}`);
   } finally {
     connectBtn.disabled = false;
   }
 });
 
-unpairBtn.addEventListener("click", () => {
-  disconnectBle();
-  appendLog("Conexao BLE encerrada");
-  window.alert(
-    "A desconexao foi feita. Para desparear completamente, remova o dispositivo KC868-A6-Setup nas configuracoes Bluetooth do sistema."
-  );
-});
-
 statusBtn.addEventListener("click", async () => {
   try {
-    startPending("get_status", "Atualizando status...");
+    setLoading("Atualizando status...");
     await writeCommand({ cmd: "get_status" });
   } catch (error) {
-    finishPending();
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+syncClockBtn.addEventListener("click", async () => {
+  try {
+    setLoading("Sincronizando relogio...");
+    await syncClock();
+    await writeCommand({ cmd: "get_status" });
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+unpairBtn.addEventListener("click", () => {
+  disconnectBle();
+  window.alert("Sessao BLE encerrada. Para remover o pareamento, exclua o dispositivo nas configuracoes Bluetooth do sistema.");
+});
+
+wifiForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const ssid = ssidInput.value.trim();
+  const pass = passwordInput.value;
+  if (!ssid) return;
+  try {
+    setLoading("Salvando Wi-Fi...");
+    await writeCommand({ cmd: "set_wifi", ssid, pass });
+  } catch (error) {
+    clearLoading();
     appendLog(`Erro: ${error.message}`);
   }
 });
 
 clearBtn.addEventListener("click", async () => {
-  const ok = window.confirm("Remover SSID/senha salvos da placa?");
-  if (!ok) return;
+  if (!window.confirm("Remover configuracao Wi-Fi da placa?")) return;
   try {
-    startPending("clear_wifi", "Limpando credenciais Wi-Fi...");
-    await clearWifi();
+    setLoading("Limpando Wi-Fi...");
+    await writeCommand({ cmd: "clear_wifi" });
   } catch (error) {
-    finishPending();
+    clearLoading();
     appendLog(`Erro: ${error.message}`);
   }
 });
 
-relayButtons.forEach((button) => {
-  button.classList.add("off");
-  button.addEventListener("click", async () => {
-    const relayNumber = Number(button.dataset.relay || 0);
-    if (!relayNumber) return;
-
-    const nextOn = !relayStates[relayNumber - 1];
-    try {
-      startPending(`relay_${relayNumber}`, `Atualizando relé ${relayNumber}...`, 12000);
-      await writeCommand({
-        cmd: "set_relay",
-        relay: String(relayNumber),
-        state: nextOn ? "on" : "off"
-      });
-    } catch (error) {
-      finishPending();
-      appendLog(`Erro no relé ${relayNumber}: ${error.message}`);
-    }
-  });
+addIrrigationRowBtn.addEventListener("click", () => {
+  const count = irrigationRows.querySelectorAll("tr").length;
+  if (count >= 24) {
+    window.alert("Limite de 24 linhas atingido.");
+    return;
+  }
+  irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
 });
 
-wifiForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+saveIrrigationBtn.addEventListener("click", async () => {
+  try {
+    await saveIrrigationSchedule();
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
 
-  const ssid = ssidInput.value.trim();
-  const pass = passwordInput.value;
-  if (!ssid) {
-    appendLog("SSID obrigatorio");
+saveOxygenationLeadBtn.addEventListener("click", async () => {
+  const minutes = Number(oxygenationLeadInput.value || 0);
+  try {
+    setLoading("Salvando tempo de oxigenacao...");
+    await writeCommand({ cmd: "set_oxygenation_lead", minutes: String(minutes) });
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+startManualIrrigationBtn.addEventListener("click", async () => {
+  const minutes = Number(manualIrrigationMinutes.value || 0);
+  try {
+    setLoading("Acionando irrigacao manual...");
+    await writeCommand({ cmd: "start_manual_irrigation", minutes: String(minutes) });
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+zeroEcBtn.addEventListener("click", async () => {
+  try {
+    setLoading("Zerando EC relativa...");
+    await writeCommand({ cmd: "zero_ec_relative" });
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+startManualOxyBtn.addEventListener("click", async () => {
+  const minutes = Number(manualOxyMinutes.value || 0);
+  try {
+    setLoading("Acionando oxigenacao manual...");
+    await writeCommand({ cmd: "start_manual_oxygenation", minutes: String(minutes) });
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+socketCards.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const action = target.dataset.socketAction;
+  const socket = Number(target.dataset.socket || 0);
+  if (!action || !socket) return;
+
+  if (action === "add") {
+    const card = socketCards.querySelector(`.socket-card[data-socket="${socket}"]`);
+    if (!card) return;
+    const tbody = card.querySelector(".socket-rows");
+    if (!tbody) return;
+    const count = tbody.querySelectorAll("tr").length;
+    if (count >= 24) {
+      window.alert("Limite de 24 linhas atingido.");
+      return;
+    }
+    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
     return;
   }
 
-  try {
-    startPending("set_wifi", "Salvando credenciais e conectando no Wi-Fi...");
-    await writeCommand({ cmd: "set_wifi", ssid, pass });
-  } catch (error) {
-    finishPending();
-    appendLog(`Erro: ${error.message}`);
+  if (action === "save") {
+    try {
+      await saveSocket(socket);
+    } catch (error) {
+      clearLoading();
+      appendLog(`Erro: ${error.message}`);
+    }
   }
+});
+
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-pane").forEach((pane) => pane.classList.remove("active"));
+    btn.classList.add("active");
+    const pane = document.getElementById(btn.dataset.tab || "");
+    if (pane) pane.classList.add("active");
+  });
 });
 
 if ("serviceWorker" in navigator) {
@@ -374,5 +613,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+renderIrrigationRows([]);
+renderSocketCards();
 updateConnectedState(false);
-renderWifiMode({ wifiConfigured: false });

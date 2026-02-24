@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0f766e" />
-  <title>KC868 Wi-Fi Setup</title>
+  <title>Automacao Cultivo - KC868</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -12,17 +12,19 @@
   <main class="app">
     <header class="hero">
       <p class="kicker">KINCONY KC868-A6-V1 4SP</p>
-      <h1>Configuração Wi-Fi via Bluetooth</h1>
-      <p class="subtitle">PWA para provisionar SSID/senha e validar conexão da placa.</p>
+      <h1>Painel de Automacao de Cultivo</h1>
+      <p class="subtitle">BLE + Wi-Fi + Irrigacao + Tanque + Tomadas adicionais</p>
     </header>
 
     <section class="card">
       <div class="row">
         <button id="connectBtn" type="button">Conectar Bluetooth</button>
         <button id="statusBtn" type="button" disabled>Atualizar Status</button>
-        <button id="unpairBtn" type="button" class="secondary" disabled>Desparear Bluetooth</button>
+        <button id="syncClockBtn" type="button" disabled>Sincronizar Hora</button>
+        <button id="unpairBtn" type="button" class="secondary" disabled>Desconectar</button>
       </div>
       <p id="bleState" class="state">Desconectado</p>
+      <p id="clockState" class="hint">Relogio nao sincronizado</p>
       <p id="loadingBox" class="loading hidden"></p>
       <p class="hint">Passkey BLE: <strong>123456</strong></p>
       <p id="wifiAlert" class="alert hidden"></p>
@@ -30,23 +32,19 @@
 
     <section class="card">
       <h2>Wi-Fi</h2>
-
       <div id="wifiConfiguredBox" class="hidden">
         <p class="wifi-label">Rede ativa/configurada:</p>
         <p id="configuredSsid" class="ssid-pill">-</p>
         <div class="row">
-          <button id="clearBtn" type="button" class="secondary" disabled>Limpar Configuração</button>
+          <button id="clearBtn" type="button" class="secondary" disabled>Limpar Configuracao</button>
         </div>
       </div>
-
       <div id="wifiConfigBox">
         <form id="wifiForm">
           <label for="ssid">SSID</label>
           <input id="ssid" name="ssid" required maxlength="64" autocomplete="off" />
-
           <label for="password">Senha</label>
           <input id="password" name="password" type="password" maxlength="64" />
-
           <div class="row">
             <button id="saveBtn" type="submit" disabled>Salvar e Conectar</button>
           </div>
@@ -54,39 +52,84 @@
       </div>
     </section>
 
-    <section class="card">
-      <h2>Relés</h2>
-      <p id="relayInfo" class="hint">Aguardando status da placa...</p>
-      <div id="relayGrid" class="relay-grid">
-        <div class="relay-item">
-          <span>Relé 1</span>
-          <button type="button" data-relay="1" class="relay-btn" disabled>Desligado</button>
+    <section class="tabs card">
+      <div class="tab-head">
+        <button class="tab-btn active" data-tab="tab1">Aba 1 - Irrigacao</button>
+        <button class="tab-btn" data-tab="tab2">Aba 2 - Tanque</button>
+        <button class="tab-btn" data-tab="tab3">Aba 3 - Tomadas</button>
+      </div>
+
+      <div id="tab1" class="tab-pane active">
+        <h3>Programacao Irrigacao</h3>
+        <div class="grid-2">
+          <div>
+            <table class="tbl">
+              <thead>
+                <tr><th>Hora</th><th>Tempo de rega (min)</th></tr>
+              </thead>
+              <tbody id="irrigationRows"></tbody>
+            </table>
+            <div class="row">
+              <button id="addIrrigationRowBtn" type="button" disabled>Adicionar horario</button>
+              <button id="saveIrrigationBtn" type="button" disabled>Salvar horarios</button>
+            </div>
+          </div>
+          <div>
+            <div class="sensor-box">
+              <strong>Sensor Umidade 1</strong>
+              <p id="hum1Value">- %</p>
+            </div>
+            <div class="sensor-box">
+              <strong>Sensor Umidade 2</strong>
+              <p id="hum2Value">- %</p>
+            </div>
+          </div>
         </div>
-        <div class="relay-item">
-          <span>Relé 2</span>
-          <button type="button" data-relay="2" class="relay-btn" disabled>Desligado</button>
+
+        <div class="grid-2">
+          <div class="inline-card">
+            <label for="oxygenationLeadInput">Tempo de oxigenacao antes da rega (min)</label>
+            <input id="oxygenationLeadInput" type="number" min="0" max="240" />
+            <button id="saveOxygenationLeadBtn" type="button" disabled>Salvar tempo</button>
+          </div>
+          <div class="inline-card">
+            <label for="manualIrrigationMinutes">Irrigacao manual (min)</label>
+            <input id="manualIrrigationMinutes" type="number" min="1" max="720" />
+            <button id="startManualIrrigationBtn" type="button" disabled>Acionar</button>
+          </div>
         </div>
-        <div class="relay-item">
-          <span>Relé 3</span>
-          <button type="button" data-relay="3" class="relay-btn" disabled>Desligado</button>
+      </div>
+
+      <div id="tab2" class="tab-pane">
+        <h3>Supervisorio Tanque</h3>
+        <table class="tbl">
+          <tbody>
+            <tr><th>PH</th><td id="phValue">-</td></tr>
+            <tr><th>EC absoluta</th><td id="ecAbsValue">-</td></tr>
+            <tr><th>EC relativa</th><td id="ecRelValue">-</td></tr>
+            <tr><th>Entrada A1 (V)</th><td id="a1Value">-</td></tr>
+            <tr><th>Entrada A2 (V)</th><td id="a2Value">-</td></tr>
+          </tbody>
+        </table>
+        <div class="row">
+          <button id="zeroEcBtn" type="button" disabled>Zerar EC relativa</button>
         </div>
-        <div class="relay-item">
-          <span>Relé 4</span>
-          <button type="button" data-relay="4" class="relay-btn" disabled>Desligado</button>
+
+        <div class="inline-card">
+          <label for="manualOxyMinutes">Oxigenacao manual (min)</label>
+          <input id="manualOxyMinutes" type="number" min="1" max="720" />
+          <button id="startManualOxyBtn" type="button" disabled>Acionar</button>
         </div>
-        <div class="relay-item">
-          <span>Relé 5</span>
-          <button type="button" data-relay="5" class="relay-btn" disabled>Desligado</button>
-        </div>
-        <div class="relay-item">
-          <span>Relé 6</span>
-          <button type="button" data-relay="6" class="relay-btn" disabled>Desligado</button>
-        </div>
+      </div>
+
+      <div id="tab3" class="tab-pane">
+        <h3>Tomadas adicionais</h3>
+        <div id="socketCards"></div>
       </div>
     </section>
 
     <section class="card">
-      <h2>Último Status</h2>
+      <h2>Ultimo Status</h2>
       <pre id="statusBox">Sem dados</pre>
     </section>
 
