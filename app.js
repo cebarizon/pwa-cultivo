@@ -48,7 +48,6 @@ let rxCharacteristic;
 let txCharacteristic;
 let pollTimer;
 let pendingTimer = null;
-let hasLoadedInitialConfig = false;
 const chunkBuffer = new Map();
 
 const socketState = Array.from({ length: 4 }, (_, idx) => ({
@@ -290,8 +289,8 @@ function renderSocketCards() {
   });
 }
 
-function syncSocketStateFromStatus(status) {
-  const sockets = status.sockets || {};
+function syncSocketStateFromConfig(config) {
+  const sockets = config.sockets || {};
   const enabled = Array.isArray(sockets.enabled) ? sockets.enabled : [false, false, false, false];
   const map = [sockets.s1 || [], sockets.s2 || [], sockets.s3 || [], sockets.s4 || []];
 
@@ -341,16 +340,15 @@ function renderStatus(status) {
   renderWifiMode(status);
   renderTank(status);
   updateClockLabel(status.clock);
+}
 
-  if (!hasLoadedInitialConfig) {
-    const irrigation = status.irrigation || {};
-    oxygenationLeadInput.value = String(Number(irrigation.oxygenationLeadMin || 0));
-    renderIrrigationRows(Array.isArray(irrigation.entries) ? irrigation.entries : []);
-    syncSocketStateFromStatus(status);
-    renderSocketCards();
-    hasLoadedInitialConfig = true;
-    updateConnectedState(Boolean(rxCharacteristic));
-  }
+function renderFullConfig(config) {
+  const irrigation = config.irrigation || {};
+  oxygenationLeadInput.value = String(Number(irrigation.oxygenationLeadMin || 0));
+  renderIrrigationRows(Array.isArray(irrigation.entries) ? irrigation.entries : []);
+  syncSocketStateFromConfig(config);
+  renderSocketCards();
+  updateConnectedState(Boolean(rxCharacteristic));
 }
 
 function onBleNotify(event) {
@@ -367,6 +365,10 @@ function handleIncomingBlePayload(incoming) {
   if (!msg) return;
   if (msg.type === "status") {
     renderStatus(msg);
+    clearLoading();
+  }
+  if (msg.type === "full_config") {
+    renderFullConfig(msg);
     clearLoading();
   }
   if (msg.type === "result") {
@@ -393,6 +395,11 @@ async function readTxOnce() {
 async function requestStatus() {
   await writeCommand({ cmd: "get_status" });
   setTimeout(() => { readTxOnce(); }, 140);
+}
+
+async function requestFullConfig() {
+  await writeCommand({ cmd: "get_full_config" });
+  setTimeout(() => { readTxOnce(); }, 220);
 }
 
 function stopStatusPolling() {
@@ -461,6 +468,7 @@ async function connectBle() {
   setLoading("Sincronizando hora e status...");
   await syncClock();
   await requestStatus();
+  await requestFullConfig();
 }
 
 function disconnectBle() {
@@ -485,6 +493,7 @@ async function saveIrrigationSchedule() {
     });
   }
   await requestStatus();
+  await requestFullConfig();
 }
 
 async function saveSocket(socketIndex) {
@@ -508,6 +517,7 @@ async function saveSocket(socketIndex) {
     });
   }
   await requestStatus();
+  await requestFullConfig();
 }
 
 connectBtn.addEventListener("click", async () => {
