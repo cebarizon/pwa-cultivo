@@ -20,7 +20,6 @@ const clockState = document.getElementById("clockState");
 const wifiAlert = document.getElementById("wifiAlert");
 const loadingBox = document.getElementById("loadingBox");
 const statusBox = document.getElementById("statusBox");
-const logBox = document.getElementById("logBox");
 
 const irrigationRows = document.getElementById("irrigationRows");
 const addIrrigationRowBtn = document.getElementById("addIrrigationRowBtn");
@@ -50,6 +49,7 @@ let txCharacteristic;
 let pollTimer;
 let pendingTimer = null;
 let hasLoadedInitialConfig = false;
+const chunkBuffer = new Map();
 
 const socketState = Array.from({ length: 4 }, (_, idx) => ({
   index: idx + 1,
@@ -58,9 +58,7 @@ const socketState = Array.from({ length: 4 }, (_, idx) => ({
 }));
 
 function appendLog(message) {
-  const time = new Date().toLocaleTimeString();
-  logBox.textContent += `[${time}] ${message}\n`;
-  logBox.scrollTop = logBox.scrollHeight;
+  void message;
 }
 
 function showWifiAlert(message) {
@@ -121,6 +119,37 @@ function parseJsonSafe(text) {
   }
 }
 
+function tryReassembleChunk(raw) {
+  if (!raw.startsWith("__PART__|")) return raw;
+
+  const p1 = raw.indexOf("|", 9);
+  if (p1 < 0) return null;
+  const p2 = raw.indexOf("|", p1 + 1);
+  if (p2 < 0) return null;
+  const p3 = raw.indexOf("|", p2 + 1);
+  if (p3 < 0) return null;
+
+  const msgId = raw.substring(9, p1);
+  const index = Number(raw.substring(p1 + 1, p2));
+  const total = Number(raw.substring(p2 + 1, p3));
+  const payload = raw.substring(p3 + 1);
+  if (!msgId || !index || !total) return null;
+
+  let bucket = chunkBuffer.get(msgId);
+  if (!bucket) {
+    bucket = { total, parts: new Array(total).fill("") };
+    chunkBuffer.set(msgId, bucket);
+  }
+  if (bucket.total !== total || index < 1 || index > total) return null;
+  bucket.parts[index - 1] = payload;
+
+  const complete = bucket.parts.every((p) => p.length > 0);
+  if (!complete) return null;
+
+  chunkBuffer.delete(msgId);
+  return bucket.parts.join("");
+}
+
 async function writeCommand(payload) {
   if (!rxCharacteristic) throw new Error("RX characteristic indisponivel");
   const json = JSON.stringify(payload);
@@ -129,13 +158,16 @@ async function writeCommand(payload) {
 }
 
 function renderWifiMode(status) {
-  if (status.wifiConfigured) {
+  const wifiActive = Boolean(status.wifiConfigured) && status.wifiState === "connected";
+
+  if (wifiActive) {
     wifiConfiguredBox.classList.remove("hidden");
     wifiConfigBox.classList.add("hidden");
     configuredSsid.textContent = status.ssid || "(SSID nao informado)";
   } else {
     wifiConfiguredBox.classList.add("hidden");
     wifiConfigBox.classList.remove("hidden");
+    if (status.ssid) ssidInput.value = status.ssid;
   }
 
   if (!status.wifiConfigured) {
@@ -143,7 +175,7 @@ function renderWifiMode(status) {
     return;
   }
   if (status.wifiState !== "connected") {
-    showWifiAlert(`Wi-Fi com problema (${status.wifiState}).`);
+    showWifiAlert(`Wi-Fi nao esta ativo (${status.wifiState}). Reconfigure a rede.`);
     return;
   }
   hideWifiAlert();
@@ -322,8 +354,12 @@ function renderStatus(status) {
 }
 
 function onBleNotify(event) {
-  const raw = new TextDecoder().decode(event.target.value);
-  appendLog(`RX < ${raw}`);
+  const incoming = new TextDecoder().decode(event.target.value);
+  appendLog(`RX < ${incoming}`);
+
+  const raw = tryReassembleChunk(incoming);
+  if (raw === null) return;
+
   const msg = parseJsonSafe(raw);
   if (!msg) return;
   if (msg.type === "status") {
@@ -331,6 +367,10 @@ function onBleNotify(event) {
     clearLoading();
   }
   if (msg.type === "result") {
+    if (msg.action === "set_clock") {
+      if (msg.ok) appendLog("Relogio sincronizado com sucesso");
+      else appendLog(`Falha na sincronizacao de hora: ${msg.detail || "erro"}`);
+    }
     clearLoading();
   }
 }
@@ -357,8 +397,17 @@ function browserTimeHHMM() {
   return `${hh}:${mm}`;
 }
 
+function browserDayNumber() {
+  const now = new Date();
+  const localMs = now.getTime() - now.getTimezoneOffset() * 60000;
+  return Math.floor(localMs / 86400000);
+}
+
 async function syncClock() {
-  await writeCommand({ cmd: "set_clock", time: browserTimeHHMM() });
+  const time = browserTimeHHMM();
+  const day = browserDayNumber();
+  appendLog(`Sincronizando hora local ${time} (dia ${day})`);
+  await writeCommand({ cmd: "set_clock", time, day: String(day) });
 }
 
 async function connectBle() {

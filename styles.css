@@ -245,6 +245,41 @@ button:disabled {
   gap: 12px;
 }
 
+.socket-card .tbl {
+  table-layout: fixed;
+}
+
+.socket-card .tbl th,
+.socket-card .tbl td {
+  padding: 6px;
+}
+
+.socket-title-input {
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+}
+
+.socket-start-input,
+.socket-end-input {
+  width: 86px;
+  min-width: 86px;
+  max-width: 86px;
+}
+
+.socket-row-enabled {
+  transform: scale(0.95);
+}
+
+.socket-card .row {
+  flex-wrap: nowrap;
+}
+
+.socket-card .row button {
+  white-space: nowrap;
+  padding: 9px 10px;
+}
+
 .socket-badge {
   background: #dff3ff;
   color: #015a8a;
@@ -290,5 +325,139 @@ pre {
 
   .hero h1 {
     font-size: 1.4rem;
+  }
+
+  .socket-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .socket-card .tbl thead {
+    display: none;
+  }
+
+  .socket-card .tbl tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px dashed var(--border);
+    padding: 6px 0;
+  }
+
+  .socket-card .tbl tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .socket-card .tbl td {
+    border: none;
+    padding: 0;
+  }
+
+  .socket-title-input {
+    width: 96px;
+    min-width: 96px;
+    max-width: 96px;
+    padding: 8px 9px;
+  }
+
+  .socket-start-input,
+  .socket-end-input {
+    width: 78px;
+    min-width: 78px;
+    max-width: 78px;
+    padding: 8px 9px;
+  }
+
+  .socket-card .row {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .socket-card .row button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .app {
+    padding: 10px;
+  }
+
+  .card {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .row {
+    gap: 6px;
+  }
+
+  button {
+    padding: 8px 10px;
+    font-size: 0.86rem;
+  }
+
+  input {
+    padding: 8px 9px;
+    font-size: 0.86rem;
+  }
+
+  .socket-card .tbl tbody tr {
+    grid-template-columns: 84px 66px 66px 38px;
+    gap: 4px;
+  }
+
+  .socket-title-input {
+    width: 84px;
+    min-width: 84px;
+    max-width: 84px;
+  }
+
+  .socket-start-input,
+  .socket-end-input {
+    width: 66px;
+    min-width: 66px;
+    max-width: 66px;
+  }
+
+  .socket-enable {
+    gap: 4px;
+    font-size: 0.82rem;
+  }
+
+  .socket-card .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 320px) {
+  .hero h1 {
+    font-size: 1.16rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+  }
+
+  .socket-card .tbl tbody tr {
+    grid-template-columns: 76px 62px 62px 34px;
+  }
+
+  .socket-title-input {
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+    font-size: 0.82rem;
+  }
+
+  .socket-start-input,
+  .socket-end-input {
+    width: 62px;
+    min-width: 62px;
+    max-width: 62px;
+    font-size: 0.82rem;
   }
 }
