@@ -159,6 +159,7 @@ async function writeCommand(payload) {
 
 function renderWifiMode(status) {
   const wifiActive = Boolean(status.wifiConfigured) && status.wifiState === "connected";
+  if (status.ssid) ssidInput.value = status.ssid;
 
   if (wifiActive) {
     wifiConfiguredBox.classList.remove("hidden");
@@ -167,7 +168,6 @@ function renderWifiMode(status) {
   } else {
     wifiConfiguredBox.classList.add("hidden");
     wifiConfigBox.classList.remove("hidden");
-    if (status.ssid) ssidInput.value = status.ssid;
   }
 
   if (!status.wifiConfigured) {
@@ -367,9 +367,10 @@ function onBleNotify(event) {
     clearLoading();
   }
   if (msg.type === "result") {
-    if (msg.action === "set_clock") {
-      if (msg.ok) appendLog("Relogio sincronizado com sucesso");
-      else appendLog(`Falha na sincronizacao de hora: ${msg.detail || "erro"}`);
+    if (msg.action === "set_clock" && msg.ok) {
+      clockState.textContent = "Relogio sincronizado (atualizando...)";
+    } else if (msg.action === "set_clock" && !msg.ok) {
+      clockState.textContent = "Falha ao sincronizar relogio";
     }
     clearLoading();
   }

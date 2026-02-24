@@ -61,6 +61,7 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+  align-items: center;
 }
 
 label {
@@ -77,6 +78,13 @@ input {
   border: 1px solid var(--border);
   font-size: 0.95rem;
   background: #fff;
+  min-height: 40px;
+}
+
+input[type="time"] {
+  min-width: 104px;
+  padding-right: 34px;
+  font-variant-numeric: tabular-nums;
 }
 
 button {
@@ -87,6 +95,8 @@ button {
   background: var(--primary);
   color: #fff;
   font-weight: 600;
+  min-height: 40px;
+  line-height: 1.1;
 }
 
 button:hover:enabled {
@@ -167,6 +177,7 @@ button:disabled {
   background: var(--tab);
   color: var(--text);
   border: 1px solid var(--border);
+  min-height: 40px;
 }
 
 .tab-btn.active {
@@ -203,6 +214,7 @@ button:disabled {
   border: 1px solid var(--border);
   padding: 8px;
   text-align: left;
+  vertical-align: middle;
 }
 
 .tbl th {
@@ -230,6 +242,10 @@ button:disabled {
   background: #f8fbfb;
 }
 
+.inline-card button {
+  margin-top: 8px;
+}
+
 .socket-card {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -251,20 +267,20 @@ button:disabled {
 
 .socket-card .tbl th,
 .socket-card .tbl td {
-  padding: 6px;
+  padding: 8px 6px;
 }
 
 .socket-title-input {
-  width: 110px;
-  min-width: 110px;
-  max-width: 110px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
 }
 
 .socket-start-input,
 .socket-end-input {
-  width: 86px;
-  min-width: 86px;
-  max-width: 86px;
+  width: 100%;
+  min-width: 104px;
+  max-width: none;
 }
 
 .socket-row-enabled {
@@ -272,12 +288,14 @@ button:disabled {
 }
 
 .socket-card .row {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .socket-card .row button {
   white-space: nowrap;
-  padding: 9px 10px;
+  padding: 10px 12px;
+  flex: 1 1 170px;
 }
 
 .socket-badge {
@@ -338,11 +356,15 @@ pre {
 
   .socket-card .tbl tbody tr {
     display: grid;
-    grid-template-columns: 1fr auto auto auto;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "title title"
+      "start end"
+      "active active";
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     border-bottom: 1px dashed var(--border);
-    padding: 6px 0;
+    padding: 8px 0;
   }
 
   .socket-card .tbl tbody tr:last-child {
@@ -354,19 +376,35 @@ pre {
     padding: 0;
   }
 
+  .socket-card .tbl tbody tr td:nth-child(1) {
+    grid-area: title;
+  }
+
+  .socket-card .tbl tbody tr td:nth-child(2) {
+    grid-area: start;
+  }
+
+  .socket-card .tbl tbody tr td:nth-child(3) {
+    grid-area: end;
+  }
+
+  .socket-card .tbl tbody tr td:nth-child(4) {
+    grid-area: active;
+  }
+
   .socket-title-input {
-    width: 96px;
-    min-width: 96px;
-    max-width: 96px;
-    padding: 8px 9px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 9px 10px;
   }
 
   .socket-start-input,
   .socket-end-input {
-    width: 78px;
-    min-width: 78px;
-    max-width: 78px;
-    padding: 8px 9px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 9px 30px 9px 10px;
   }
 
   .socket-card .row {
@@ -405,24 +443,6 @@ pre {
     font-size: 0.86rem;
   }
 
-  .socket-card .tbl tbody tr {
-    grid-template-columns: 84px 66px 66px 38px;
-    gap: 4px;
-  }
-
-  .socket-title-input {
-    width: 84px;
-    min-width: 84px;
-    max-width: 84px;
-  }
-
-  .socket-start-input,
-  .socket-end-input {
-    width: 66px;
-    min-width: 66px;
-    max-width: 66px;
-  }
-
   .socket-enable {
     gap: 4px;
     font-size: 0.82rem;
@@ -442,22 +462,9 @@ pre {
     font-size: 0.85rem;
   }
 
-  .socket-card .tbl tbody tr {
-    grid-template-columns: 76px 62px 62px 34px;
-  }
-
-  .socket-title-input {
-    width: 76px;
-    min-width: 76px;
-    max-width: 76px;
-    font-size: 0.82rem;
-  }
-
+  .socket-title-input,
   .socket-start-input,
   .socket-end-input {
-    width: 62px;
-    min-width: 62px;
-    max-width: 62px;
     font-size: 0.82rem;
   }
 }
