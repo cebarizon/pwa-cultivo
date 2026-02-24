@@ -355,8 +355,11 @@ function renderStatus(status) {
 
 function onBleNotify(event) {
   const incoming = new TextDecoder().decode(event.target.value);
-  appendLog(`RX < ${incoming}`);
+  handleIncomingBlePayload(incoming);
+}
 
+function handleIncomingBlePayload(incoming) {
+  appendLog(`RX < ${incoming}`);
   const raw = tryReassembleChunk(incoming);
   if (raw === null) return;
 
@@ -376,6 +379,22 @@ function onBleNotify(event) {
   }
 }
 
+async function readTxOnce() {
+  if (!txCharacteristic) return;
+  try {
+    const value = await txCharacteristic.readValue();
+    const incoming = new TextDecoder().decode(value);
+    if (incoming) handleIncomingBlePayload(incoming);
+  } catch (error) {
+    appendLog(`Erro leitura TX: ${error.message}`);
+  }
+}
+
+async function requestStatus() {
+  await writeCommand({ cmd: "get_status" });
+  setTimeout(() => { readTxOnce(); }, 140);
+}
+
 function stopStatusPolling() {
   if (pollTimer) {
     clearInterval(pollTimer);
@@ -387,7 +406,7 @@ function startStatusPolling() {
   stopStatusPolling();
   pollTimer = setInterval(() => {
     if (!rxCharacteristic) return;
-    writeCommand({ cmd: "get_status" }).catch((error) => appendLog(`Erro no poll: ${error.message}`));
+    requestStatus().catch((error) => appendLog(`Erro no poll: ${error.message}`));
   }, POLL_MS);
 }
 
@@ -409,6 +428,7 @@ async function syncClock() {
   const day = browserDayNumber();
   appendLog(`Sincronizando hora local ${time} (dia ${day})`);
   await writeCommand({ cmd: "set_clock", time, day: String(day) });
+  setTimeout(() => { readTxOnce(); }, 140);
 }
 
 async function connectBle() {
@@ -440,7 +460,7 @@ async function connectBle() {
   appendLog(`Conectado ao dispositivo: ${bleDevice.name || "sem nome"}`);
   setLoading("Sincronizando hora e status...");
   await syncClock();
-  await writeCommand({ cmd: "get_status" });
+  await requestStatus();
 }
 
 function disconnectBle() {
@@ -464,7 +484,7 @@ async function saveIrrigationSchedule() {
       minutes: String(row.minutes)
     });
   }
-  await writeCommand({ cmd: "get_status" });
+  await requestStatus();
 }
 
 async function saveSocket(socketIndex) {
@@ -487,7 +507,7 @@ async function saveSocket(socketIndex) {
       end: row.end
     });
   }
-  await writeCommand({ cmd: "get_status" });
+  await requestStatus();
 }
 
 connectBtn.addEventListener("click", async () => {
@@ -505,7 +525,7 @@ connectBtn.addEventListener("click", async () => {
 statusBtn.addEventListener("click", async () => {
   try {
     setLoading("Atualizando status...");
-    await writeCommand({ cmd: "get_status" });
+    await requestStatus();
   } catch (error) {
     clearLoading();
     appendLog(`Erro: ${error.message}`);
@@ -516,9 +536,10 @@ syncClockBtn.addEventListener("click", async () => {
   try {
     setLoading("Sincronizando relogio...");
     await syncClock();
-    await writeCommand({ cmd: "get_status" });
+    await requestStatus();
   } catch (error) {
     clearLoading();
+    clockState.textContent = "Falha ao sincronizar relogio";
     appendLog(`Erro: ${error.message}`);
   }
 });

@@ -1,4 +1,4 @@
-const CACHE_NAME = "kc868-pwa-v2";
+const CACHE_NAME = "kc868-pwa-v3";
 const ASSETS = [
   "./index.html",
   "./styles.css",
