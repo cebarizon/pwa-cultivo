@@ -9,6 +9,7 @@
   - Wi-Fi nao configurado: exibe formulario para configurar SSID/senha.
 - Envia SSID/senha para a placa.
 - Limpa credenciais salvas.
+- Controla os 6 reles da placa (ligar/desligar).
 
 ## Seguranca BLE
 - Pareamento BLE com passkey fixa: `123456`.
@@ -30,6 +31,7 @@ Comandos enviados para RX:
 {"cmd":"test_wifi"}
 {"cmd":"clear_wifi"}
 {"cmd":"ping"}
+{"cmd":"set_relay","relay":"1","state":"on"}
 ```
 
 Mensagens recebidas em TX (exemplos):
@@ -37,6 +39,7 @@ Mensagens recebidas em TX (exemplos):
 ```json
 {"type":"status","wifiConfigured":true,"wifiState":"connected","ssid":"MinhaRede","ip":"192.168.1.25"}
 {"type":"result","action":"set_wifi","ok":true,"detail":"credentials_saved"}
+{"type":"result","action":"set_relay","ok":true,"detail":"ok"}
 ```
 
 ## Como rodar
