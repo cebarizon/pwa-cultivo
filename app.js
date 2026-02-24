@@ -15,6 +15,8 @@ const passwordInput = document.getElementById("password");
 const wifiConfiguredBox = document.getElementById("wifiConfiguredBox");
 const wifiConfigBox = document.getElementById("wifiConfigBox");
 const configuredSsid = document.getElementById("configuredSsid");
+const relayInfo = document.getElementById("relayInfo");
+const relayButtons = Array.from(document.querySelectorAll(".relay-btn"));
 const bleState = document.getElementById("bleState");
 const wifiAlert = document.getElementById("wifiAlert");
 const loadingBox = document.getElementById("loadingBox");
@@ -29,6 +31,7 @@ let pollTimer;
 let alertShown = false;
 let pendingAction = "";
 let pendingTimer = null;
+let relayStates = [false, false, false, false, false, false];
 
 function appendLog(message) {
   const time = new Date().toLocaleTimeString();
@@ -89,6 +92,13 @@ function updateConnectedState(connected) {
     hideWifiAlert();
     alertShown = false;
     finishPending();
+    relayInfo.textContent = "Aguardando status da placa...";
+    relayButtons.forEach((button) => {
+      button.disabled = true;
+      button.textContent = "Desligado";
+      button.classList.remove("on");
+      button.classList.add("off");
+    });
   }
 }
 
@@ -103,6 +113,35 @@ function renderWifiMode(status) {
 
   wifiConfiguredBox.classList.add("hidden");
   wifiConfigBox.classList.remove("hidden");
+}
+
+function setRelayButtonVisual(button, isOn) {
+  button.textContent = isOn ? "Ligado" : "Desligado";
+  button.classList.toggle("on", isOn);
+  button.classList.toggle("off", !isOn);
+}
+
+function renderRelays(status) {
+  const ready = Boolean(status && status.relayReady);
+  const list = Array.isArray(status && status.relays) ? status.relays : [];
+
+  if (!ready) {
+    relayInfo.textContent = "Expansor de relés indisponível no momento.";
+    relayButtons.forEach((button, idx) => {
+      button.disabled = true;
+      relayStates[idx] = false;
+      setRelayButtonVisual(button, false);
+    });
+    return;
+  }
+
+  relayInfo.textContent = "Toque para alternar o estado de cada relé.";
+  relayButtons.forEach((button, idx) => {
+    const isOn = Boolean(list[idx]);
+    relayStates[idx] = isOn;
+    button.disabled = !rxCharacteristic;
+    setRelayButtonVisual(button, isOn);
+  });
 }
 
 function parseJsonSafe(text) {
@@ -140,6 +179,7 @@ function statusWarningMessage(status) {
 function renderStatus(status) {
   statusBox.textContent = JSON.stringify(status, null, 2);
   renderWifiMode(status);
+  renderRelays(status);
   if (status.ssid) ssidInput.value = status.ssid;
 
   if (shouldWarnStatus(status)) {
@@ -171,6 +211,9 @@ function onBleNotify(event) {
       finishPending();
     }
     if (pendingAction === "clear_wifi" && msg.action === "clear_wifi") {
+      finishPending();
+    }
+    if (pendingAction.startsWith("relay_") && msg.action === "set_relay") {
       finishPending();
     }
   }
@@ -281,6 +324,27 @@ clearBtn.addEventListener("click", async () => {
     finishPending();
     appendLog(`Erro: ${error.message}`);
   }
+});
+
+relayButtons.forEach((button) => {
+  button.classList.add("off");
+  button.addEventListener("click", async () => {
+    const relayNumber = Number(button.dataset.relay || 0);
+    if (!relayNumber) return;
+
+    const nextOn = !relayStates[relayNumber - 1];
+    try {
+      startPending(`relay_${relayNumber}`, `Atualizando relé ${relayNumber}...`, 12000);
+      await writeCommand({
+        cmd: "set_relay",
+        relay: String(relayNumber),
+        state: nextOn ? "on" : "off"
+      });
+    } catch (error) {
+      finishPending();
+      appendLog(`Erro no relé ${relayNumber}: ${error.message}`);
+    }
+  });
 });
 
 wifiForm.addEventListener("submit", async (event) => {
