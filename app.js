@@ -77,7 +77,7 @@ function setLoading(message) {
   if (pendingTimer) clearTimeout(pendingTimer);
   pendingTimer = setTimeout(() => {
     clearLoading();
-    appendLog("Operacao demorou mais que o esperado");
+    appendLog("Operação demorou mais que o esperado");
   }, 30000);
 }
 
@@ -151,7 +151,7 @@ function tryReassembleChunk(raw) {
 }
 
 async function writeCommand(payload) {
-  if (!rxCharacteristic) throw new Error("RX characteristic indisponivel");
+  if (!rxCharacteristic) throw new Error("RX characteristic indisponível");
   const json = JSON.stringify(payload);
   await rxCharacteristic.writeValue(new TextEncoder().encode(json));
   appendLog(`TX > ${json}`);
@@ -164,18 +164,18 @@ function renderWifiMode(status) {
   if (wifiActive) {
     wifiConfiguredBox.classList.remove("hidden");
     wifiConfigBox.classList.add("hidden");
-    configuredSsid.textContent = status.ssid || "(SSID nao informado)";
+    configuredSsid.textContent = status.ssid || "(SSID não informado)";
   } else {
     wifiConfiguredBox.classList.add("hidden");
     wifiConfigBox.classList.remove("hidden");
   }
 
   if (!status.wifiConfigured) {
-    showWifiAlert("Wi-Fi nao configurado. Configure para habilitar sincronismo de hora.");
+    showWifiAlert("Wi-Fi não configurado. Configure para habilitar sincronismo de hora.");
     return;
   }
   if (status.wifiState !== "connected") {
-    showWifiAlert(`Wi-Fi nao esta ativo (${status.wifiState}). Reconfigure a rede.`);
+    showWifiAlert(`Wi-Fi não está ativo (${status.wifiState}). Reconfigure a rede.`);
     return;
   }
   hideWifiAlert();
@@ -193,17 +193,22 @@ function renderTank(status) {
 }
 
 function createIrrigationRow(start = "00:00", minutes = 1, enabled = true) {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>
+  const row = document.createElement("div");
+  row.className = "irrigation-row";
+  row.innerHTML = `
+    <div class="field">
+      <label>Hora inicial</label>
       <input type="time" value="${start}" class="irr-start" />
-      <label class="socket-enable"><input type="checkbox" class="irr-enabled" ${enabled ? "checked" : ""}/> ativo</label>
-    </td>
-    <td>
+    </div>
+    <div class="field">
+      <label>Tempo de rega (min)</label>
       <input type="number" min="0" max="720" value="${minutes}" class="irr-minutes" />
-    </td>
+    </div>
+    <label class="socket-enable irrigation-active">
+      <input type="checkbox" class="irr-enabled" ${enabled ? "checked" : ""}/> ativo
+    </label>
   `;
-  return tr;
+  return row;
 }
 
 function renderIrrigationRows(entries = []) {
@@ -243,9 +248,18 @@ function createSocketRow(row = {}) {
   const tr = document.createElement("tr");
   const safeTitle = String(row.title || "").replace(/"/g, "&quot;");
   tr.innerHTML = `
-    <td><input type="text" class="socket-title-input" maxlength="32" value="${safeTitle}" placeholder="Titulo" /></td>
-    <td><input type="time" class="socket-start-input" value="${row.start || "00:00"}" /></td>
-    <td><input type="time" class="socket-end-input" value="${row.end || "00:00"}" /></td>
+    <td>
+      <label class="socket-cell-label">Nome</label>
+      <input type="text" class="socket-title-input" maxlength="32" value="${safeTitle}" placeholder="Nome" />
+    </td>
+    <td>
+      <label class="socket-cell-label">Hora inicial</label>
+      <input type="time" class="socket-start-input" value="${row.start || "00:00"}" />
+    </td>
+    <td>
+      <label class="socket-cell-label">Hora final</label>
+      <input type="time" class="socket-end-input" value="${row.end || "00:00"}" />
+    </td>
     <td><label class="socket-enable"><input type="checkbox" class="socket-row-enabled" ${row.enabled ? "checked" : ""}/> ativo</label></td>
   `;
   return tr;
@@ -260,7 +274,7 @@ function renderSocketCards() {
     card.dataset.socket = String(socket.index);
     card.innerHTML = `
       <div class="socket-title">
-        <span class="socket-badge">Tomada ${socket.index} (Rele ${socket.index + 2})</span>
+        <span class="socket-badge">Tomada ${socket.index}</span>
         <label class="socket-enable">
           <input type="checkbox" class="socket-enabled-main" ${socket.enabled ? "checked" : ""} />
           habilitar tomada
@@ -268,7 +282,7 @@ function renderSocketCards() {
       </div>
       <table class="tbl">
         <thead>
-          <tr><th>Titulo</th><th>Hora inicio</th><th>Hora fim</th><th>Ativa</th></tr>
+          <tr><th>Nome</th><th>Hora inicial</th><th>Hora final</th><th>Ativo</th></tr>
         </thead>
         <tbody class="socket-rows"></tbody>
       </table>
@@ -330,7 +344,7 @@ function collectSocketRows(socketIndex) {
 
 function updateClockLabel(clock) {
   if (!clock || !clock.synced) {
-    clockState.textContent = "Relogio nao sincronizado";
+    clockState.textContent = "Relógio não sincronizado";
     return;
   }
   const sourceMap = {
@@ -345,7 +359,7 @@ function updateClockLabel(clock) {
 
 function renderStatus(status) {
   lastStatus = status;
-  statusBox.textContent = JSON.stringify(status, null, 2);
+  if (statusBox) statusBox.textContent = JSON.stringify(status, null, 2);
   renderWifiMode(status);
   renderTank(status);
   updateClockLabel(status.clock);
@@ -382,13 +396,13 @@ function handleIncomingBlePayload(incoming) {
   }
   if (msg.type === "result") {
     if (msg.action === "set_clock" && msg.ok) {
-      clockState.textContent = "Relogio sincronizado (atualizando...)";
+      clockState.textContent = "Relógio sincronizado (atualizando...)";
     } else if (msg.action === "set_clock" && !msg.ok) {
-      clockState.textContent = "Falha ao sincronizar relogio";
+      clockState.textContent = "Falha ao sincronizar relógio";
     } else if (msg.action === "sync_clock_ntp" && !msg.ok) {
-      clockState.textContent = "NTP indisponivel, tentando RTC/manual...";
+      clockState.textContent = "NTP indisponível, tentando RTC/manual...";
     } else if (msg.action === "sync_clock_rtc" && !msg.ok) {
-      clockState.textContent = "RTC indisponivel, aplicando hora manual...";
+      clockState.textContent = "RTC indisponível, aplicando hora manual...";
     }
     clearLoading();
   }
@@ -470,7 +484,7 @@ async function syncClock() {
 }
 
 async function connectBle() {
-  if (!navigator.bluetooth) throw new Error("Seu navegador nao suporta Web Bluetooth");
+  if (!navigator.bluetooth) throw new Error("Seu navegador não suporta Web Bluetooth");
 
   bleDevice = await navigator.bluetooth.requestDevice({
     filters: [{ namePrefix: "KC868-A6" }],
@@ -512,7 +526,7 @@ function disconnectBle() {
 
 async function saveIrrigationSchedule() {
   const rows = collectIrrigationRows();
-  setLoading("Salvando programacao de irrigacao...");
+  setLoading("Salvando programação de irrigação...");
   await writeCommand({ cmd: "clear_irrigation_entries" });
   for (const row of rows) {
     await writeCommand({
@@ -557,7 +571,7 @@ connectBtn.addEventListener("click", async () => {
     await connectBle();
   } catch (error) {
     clearLoading();
-    appendLog(`Erro de conexao: ${error.message}`);
+    appendLog(`Erro de conexão: ${error.message}`);
   } finally {
     connectBtn.disabled = false;
   }
@@ -575,19 +589,19 @@ statusBtn.addEventListener("click", async () => {
 
 syncClockBtn.addEventListener("click", async () => {
   try {
-    setLoading("Sincronizando relogio...");
+    setLoading("Sincronizando relógio...");
     await syncClock();
     await requestStatus();
   } catch (error) {
     clearLoading();
-    clockState.textContent = "Falha ao sincronizar relogio";
+    clockState.textContent = "Falha ao sincronizar relógio";
     appendLog(`Erro: ${error.message}`);
   }
 });
 
 unpairBtn.addEventListener("click", () => {
   disconnectBle();
-  window.alert("Sessao BLE encerrada. Para remover o pareamento, exclua o dispositivo nas configuracoes Bluetooth do sistema.");
+  window.alert("Sessão BLE encerrada. Para remover o pareamento, exclua o dispositivo nas configurações Bluetooth do sistema.");
 });
 
 wifiForm.addEventListener("submit", async (event) => {
@@ -605,7 +619,7 @@ wifiForm.addEventListener("submit", async (event) => {
 });
 
 clearBtn.addEventListener("click", async () => {
-  if (!window.confirm("Remover configuracao Wi-Fi da placa?")) return;
+  if (!window.confirm("Remover configuração Wi-Fi da placa?")) return;
   try {
     setLoading("Limpando Wi-Fi...");
     await writeCommand({ cmd: "clear_wifi" });
@@ -616,9 +630,9 @@ clearBtn.addEventListener("click", async () => {
 });
 
 addIrrigationRowBtn.addEventListener("click", () => {
-  const count = irrigationRows.querySelectorAll("tr").length;
+  const count = irrigationRows.querySelectorAll(".irrigation-row").length;
   if (count >= 24) {
-    window.alert("Limite de 24 linhas atingido.");
+    window.alert("Limite de 24 horários atingido.");
     return;
   }
   irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
@@ -636,7 +650,7 @@ saveIrrigationBtn.addEventListener("click", async () => {
 saveOxygenationLeadBtn.addEventListener("click", async () => {
   const minutes = Number(oxygenationLeadInput.value || 0);
   try {
-    setLoading("Salvando tempo de oxigenacao...");
+    setLoading("Salvando tempo de oxigenação...");
     await writeCommand({ cmd: "set_oxygenation_lead", minutes: String(minutes) });
   } catch (error) {
     clearLoading();
@@ -647,7 +661,7 @@ saveOxygenationLeadBtn.addEventListener("click", async () => {
 startManualIrrigationBtn.addEventListener("click", async () => {
   const minutes = Number(manualIrrigationMinutes.value || 0);
   try {
-    setLoading("Acionando irrigacao manual...");
+    setLoading("Acionando irrigação manual...");
     await writeCommand({ cmd: "start_manual_irrigation", minutes: String(minutes) });
   } catch (error) {
     clearLoading();
@@ -668,7 +682,7 @@ zeroEcBtn.addEventListener("click", async () => {
 startManualOxyBtn.addEventListener("click", async () => {
   const minutes = Number(manualOxyMinutes.value || 0);
   try {
-    setLoading("Acionando oxigenacao manual...");
+    setLoading("Acionando oxigenação manual...");
     await writeCommand({ cmd: "start_manual_oxygenation", minutes: String(minutes) });
   } catch (error) {
     clearLoading();

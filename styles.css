@@ -197,6 +197,34 @@ button:disabled {
   margin: 4px 0 12px;
 }
 
+.irrigation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.irrigation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fbfb;
+}
+
+.irrigation-row .field label {
+  margin: 0 0 6px;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.irrigation-active {
+  align-self: center;
+  margin-bottom: 2px;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -317,17 +345,16 @@ button:disabled {
   width: auto;
 }
 
-pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  background: #f4f8f8;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-  min-height: 56px;
-  max-height: 280px;
-  overflow: auto;
+.socket-cell-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+#zeroEcBtn {
+  margin-bottom: 8px;
 }
 
 @media (max-width: 860px) {
@@ -343,6 +370,17 @@ pre {
 
   .hero h1 {
     font-size: 1.4rem;
+  }
+
+  .irrigation-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .irrigation-active {
+    margin-top: 2px;
+    margin-bottom: 0;
+    align-self: flex-start;
   }
 
   .socket-title {
@@ -390,6 +428,7 @@ pre {
 
   .socket-card .tbl tbody tr td:nth-child(4) {
     grid-area: active;
+    align-self: center;
   }
 
   .socket-title-input {

@@ -4,16 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0f766e" />
-  <title>Automacao Cultivo - KC868</title>
+  <title>Automação Cultivo - KC868</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
-      <p class="kicker">KINCONY KC868-A6-V1 4SP</p>
-      <h1>Painel de Automacao de Cultivo</h1>
-      <p class="subtitle">BLE + Wi-Fi + Irrigacao + Tanque + Tomadas adicionais</p>
+      <h1>Painel de Automação de Cultivo</h1>
     </header>
 
     <section class="card">
@@ -24,7 +22,7 @@
         <button id="unpairBtn" type="button" class="secondary" disabled>Desconectar</button>
       </div>
       <p id="bleState" class="state">Desconectado</p>
-      <p id="clockState" class="hint">Relogio nao sincronizado</p>
+      <p id="clockState" class="hint">Relógio não sincronizado</p>
       <p id="loadingBox" class="loading hidden"></p>
       <p class="hint">Passkey BLE: <strong>123456</strong></p>
       <p id="wifiAlert" class="alert hidden"></p>
@@ -36,7 +34,7 @@
         <p class="wifi-label">Rede ativa/configurada:</p>
         <p id="configuredSsid" class="ssid-pill">-</p>
         <div class="row">
-          <button id="clearBtn" type="button" class="secondary" disabled>Limpar Configuracao</button>
+          <button id="clearBtn" type="button" class="secondary" disabled>Limpar Configuração</button>
         </div>
       </div>
       <div id="wifiConfigBox">
@@ -54,33 +52,28 @@
 
     <section class="tabs card">
       <div class="tab-head">
-        <button class="tab-btn active" data-tab="tab1">Aba 1 - Irrigacao</button>
-        <button class="tab-btn" data-tab="tab2">Aba 2 - Tanque</button>
-        <button class="tab-btn" data-tab="tab3">Aba 3 - Tomadas</button>
+        <button class="tab-btn active" data-tab="tab1">Irrigação</button>
+        <button class="tab-btn" data-tab="tab2">Tanque</button>
+        <button class="tab-btn" data-tab="tab3">Tomadas</button>
       </div>
 
       <div id="tab1" class="tab-pane active">
-        <h3>Programacao Irrigacao</h3>
+        <h3>Programação de Irrigação</h3>
         <div class="grid-2">
           <div>
-            <table class="tbl">
-              <thead>
-                <tr><th>Hora</th><th>Tempo de rega (min)</th></tr>
-              </thead>
-              <tbody id="irrigationRows"></tbody>
-            </table>
+            <div id="irrigationRows" class="irrigation-list"></div>
             <div class="row">
-              <button id="addIrrigationRowBtn" type="button" disabled>Adicionar horario</button>
-              <button id="saveIrrigationBtn" type="button" disabled>Salvar horarios</button>
+              <button id="addIrrigationRowBtn" type="button" disabled>Adicionar horário</button>
+              <button id="saveIrrigationBtn" type="button" disabled>Salvar horários</button>
             </div>
           </div>
           <div>
             <div class="sensor-box">
-              <strong>Sensor Umidade 1</strong>
+              <strong>Sensor de Umidade 1</strong>
               <p id="hum1Value">- %</p>
             </div>
             <div class="sensor-box">
-              <strong>Sensor Umidade 2</strong>
+              <strong>Sensor de Umidade 2</strong>
               <p id="hum2Value">- %</p>
             </div>
           </div>
@@ -88,12 +81,12 @@
 
         <div class="grid-2">
           <div class="inline-card">
-            <label for="oxygenationLeadInput">Tempo de oxigenacao antes da rega (min)</label>
+            <label for="oxygenationLeadInput">Tempo de oxigenação antes da rega (min)</label>
             <input id="oxygenationLeadInput" type="number" min="0" max="240" />
             <button id="saveOxygenationLeadBtn" type="button" disabled>Salvar tempo</button>
           </div>
           <div class="inline-card">
-            <label for="manualIrrigationMinutes">Irrigacao manual (min)</label>
+            <label for="manualIrrigationMinutes">Irrigação manual (min)</label>
             <input id="manualIrrigationMinutes" type="number" min="1" max="720" />
             <button id="startManualIrrigationBtn" type="button" disabled>Acionar</button>
           </div>
@@ -101,7 +94,7 @@
       </div>
 
       <div id="tab2" class="tab-pane">
-        <h3>Supervisorio Tanque</h3>
+        <h3>Supervisório do Tanque</h3>
         <table class="tbl">
           <tbody>
             <tr><th>PH</th><td id="phValue">-</td></tr>
@@ -116,7 +109,7 @@
         </div>
 
         <div class="inline-card">
-          <label for="manualOxyMinutes">Oxigenacao manual (min)</label>
+          <label for="manualOxyMinutes">Oxigenação manual (min)</label>
           <input id="manualOxyMinutes" type="number" min="1" max="720" />
           <button id="startManualOxyBtn" type="button" disabled>Acionar</button>
         </div>
@@ -126,11 +119,6 @@
         <h3>Tomadas adicionais</h3>
         <div id="socketCards"></div>
       </div>
-    </section>
-
-    <section class="card">
-      <h2>Ultimo Status</h2>
-      <pre id="statusBox">Sem dados</pre>
     </section>
 
   </main>
