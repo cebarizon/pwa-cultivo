@@ -17,12 +17,14 @@ const wifiConfigBox = document.getElementById("wifiConfigBox");
 const configuredSsid = document.getElementById("configuredSsid");
 const bleState = document.getElementById("bleState");
 const clockState = document.getElementById("clockState");
+const clockBadge = document.getElementById("clockBadge");
 const wifiAlert = document.getElementById("wifiAlert");
 const loadingBox = document.getElementById("loadingBox");
 const statusBox = document.getElementById("statusBox");
 
 const irrigationRows = document.getElementById("irrigationRows");
 const addIrrigationRowBtn = document.getElementById("addIrrigationRowBtn");
+const clearIrrigationRowsBtn = document.getElementById("clearIrrigationRowsBtn");
 const saveIrrigationBtn = document.getElementById("saveIrrigationBtn");
 const oxygenationLeadInput = document.getElementById("oxygenationLeadInput");
 const saveOxygenationLeadBtn = document.getElementById("saveOxygenationLeadBtn");
@@ -98,6 +100,7 @@ function updateConnectedState(connected) {
   saveBtn.disabled = !connected;
   clearBtn.disabled = !connected;
   addIrrigationRowBtn.disabled = !connected;
+  clearIrrigationRowsBtn.disabled = !connected;
   saveIrrigationBtn.disabled = !connected;
   saveOxygenationLeadBtn.disabled = !connected;
   startManualIrrigationBtn.disabled = !connected;
@@ -107,6 +110,11 @@ function updateConnectedState(connected) {
 
   const socketButtons = document.querySelectorAll("[data-socket-action]");
   socketButtons.forEach((btn) => {
+    btn.disabled = !connected;
+  });
+
+  const removeButtons = document.querySelectorAll(".irr-remove-row, .socket-remove-row");
+  removeButtons.forEach((btn) => {
     btn.disabled = !connected;
   });
 }
@@ -207,6 +215,7 @@ function createIrrigationRow(start = "00:00", minutes = 1, enabled = true) {
     <label class="socket-enable irrigation-active">
       <input type="checkbox" class="irr-enabled" ${enabled ? "checked" : ""}/> ativo
     </label>
+    <button type="button" class="secondary irr-remove-row">Remover horário</button>
   `;
   return row;
 }
@@ -261,6 +270,7 @@ function createSocketRow(row = {}) {
       <input type="time" class="socket-end-input" value="${row.end || "00:00"}" />
     </td>
     <td><label class="socket-enable"><input type="checkbox" class="socket-row-enabled" ${row.enabled ? "checked" : ""}/> ativo</label></td>
+    <td><button type="button" class="secondary socket-remove-row">Remover horário</button></td>
   `;
   return tr;
 }
@@ -282,12 +292,13 @@ function renderSocketCards() {
       </div>
       <table class="tbl">
         <thead>
-          <tr><th>Nome</th><th>Hora inicial</th><th>Hora final</th><th>Ativo</th></tr>
+          <tr><th>Nome</th><th>Hora inicial</th><th>Hora final</th><th>Ativo</th><th>Ação</th></tr>
         </thead>
         <tbody class="socket-rows"></tbody>
       </table>
       <div class="row">
-        <button type="button" data-socket-action="add" data-socket="${socket.index}" disabled>Adicionar linha</button>
+        <button type="button" data-socket-action="add" data-socket="${socket.index}" disabled>Adicionar horário</button>
+        <button type="button" class="secondary" data-socket-action="clear" data-socket="${socket.index}" disabled>Limpar horários</button>
         <button type="button" data-socket-action="save" data-socket="${socket.index}" disabled>Salvar tomada ${socket.index}</button>
       </div>
     `;
@@ -343,8 +354,23 @@ function collectSocketRows(socketIndex) {
 }
 
 function updateClockLabel(clock) {
+  if (clockBadge) {
+    clockBadge.classList.remove("clock-ok", "clock-pending", "clock-unsynced");
+  }
   if (!clock || !clock.synced) {
-    clockState.textContent = "Relógio não sincronizado";
+    if (clock && clock.ntpPending) {
+      clockState.textContent = "Relogio nao sincronizado (aguardando NTP)";
+      if (clockBadge) {
+        clockBadge.textContent = "NTP pendente";
+        clockBadge.classList.add("clock-pending");
+      }
+      return;
+    }
+    clockState.textContent = "Relogio nao sincronizado";
+    if (clockBadge) {
+      clockBadge.textContent = "Nao sincronizado";
+      clockBadge.classList.add("clock-unsynced");
+    }
     return;
   }
   const sourceMap = {
@@ -354,7 +380,17 @@ function updateClockLabel(clock) {
     persisted: "Persistido"
   };
   const sourceLabel = sourceMap[clock.source] || "Indefinido";
-  clockState.textContent = `Hora da placa: ${clock.time} (${sourceLabel})`;
+  const pendingSuffix = clock.ntpPending ? " | NTP pendente" : "";
+  clockState.textContent = `Hora da placa: ${clock.time} (${sourceLabel})${pendingSuffix}`;
+  if (clockBadge) {
+    if (clock.ntpPending) {
+      clockBadge.textContent = "NTP pendente";
+      clockBadge.classList.add("clock-pending");
+    } else {
+      clockBadge.textContent = "Sincronizado";
+      clockBadge.classList.add("clock-ok");
+    }
+  }
 }
 
 function renderStatus(status) {
@@ -638,6 +674,34 @@ addIrrigationRowBtn.addEventListener("click", () => {
   irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
 });
 
+clearIrrigationRowsBtn.addEventListener("click", async () => {
+  if (!window.confirm("Limpar horários da irrigação na tela?")) return;
+  irrigationRows.innerHTML = "";
+  irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
+  try {
+    await saveIrrigationSchedule();
+  } catch (error) {
+    clearLoading();
+    appendLog(`Erro: ${error.message}`);
+  }
+});
+
+irrigationRows.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const removeBtn = target.closest(".irr-remove-row");
+  if (!removeBtn) return;
+
+  const rows = irrigationRows.querySelectorAll(".irrigation-row");
+  if (rows.length <= 1) {
+    window.alert("Mantenha pelo menos 1 horário de irrigação.");
+    return;
+  }
+
+  const row = removeBtn.closest(".irrigation-row");
+  if (row) row.remove();
+});
+
 saveIrrigationBtn.addEventListener("click", async () => {
   try {
     await saveIrrigationSchedule();
@@ -693,6 +757,21 @@ startManualOxyBtn.addEventListener("click", async () => {
 socketCards.addEventListener("click", async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
+
+  const removeBtn = target.closest(".socket-remove-row");
+  if (removeBtn) {
+    const card = removeBtn.closest(".socket-card");
+    if (!card) return;
+    const rows = card.querySelectorAll(".socket-rows tr");
+    if (rows.length <= 1) {
+      window.alert("Mantenha pelo menos 1 horário por tomada.");
+      return;
+    }
+    const row = removeBtn.closest("tr");
+    if (row) row.remove();
+    return;
+  }
+
   const action = target.dataset.socketAction;
   const socket = Number(target.dataset.socket || 0);
   if (!action || !socket) return;
@@ -708,6 +787,23 @@ socketCards.addEventListener("click", async (event) => {
       return;
     }
     tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
+    return;
+  }
+
+  if (action === "clear") {
+    const card = socketCards.querySelector(`.socket-card[data-socket="${socket}"]`);
+    if (!card) return;
+    if (!window.confirm(`Limpar horários da tomada ${socket} na tela?`)) return;
+    const tbody = card.querySelector(".socket-rows");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
+    try {
+      await saveSocket(socket);
+    } catch (error) {
+      clearLoading();
+      appendLog(`Erro: ${error.message}`);
+    }
     return;
   }
 

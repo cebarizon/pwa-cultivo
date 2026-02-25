@@ -22,6 +22,9 @@
         <button id="unpairBtn" type="button" class="secondary" disabled>Desconectar</button>
       </div>
       <p id="bleState" class="state">Desconectado</p>
+      <p class="clock-line">
+        <span id="clockBadge" class="clock-badge clock-unsynced">Nao sincronizado</span>
+      </p>
       <p id="clockState" class="hint">Relógio não sincronizado</p>
       <p id="loadingBox" class="loading hidden"></p>
       <p class="hint">Passkey BLE: <strong>123456</strong></p>
@@ -64,6 +67,7 @@
             <div id="irrigationRows" class="irrigation-list"></div>
             <div class="row">
               <button id="addIrrigationRowBtn" type="button" disabled>Adicionar horário</button>
+              <button id="clearIrrigationRowsBtn" type="button" class="secondary" disabled>Limpar horários</button>
               <button id="saveIrrigationBtn" type="button" disabled>Salvar horários</button>
             </div>
           </div>
