@@ -4,7 +4,6 @@ const BLE_TX_CHAR_UUID = "6f28d1a2-8f8d-4e35-b0d5-8e8d21d16a00";
 const POLL_MS = 15000;
 
 const connectBtn = document.getElementById("connectBtn");
-const statusBtn = document.getElementById("statusBtn");
 const syncClockBtn = document.getElementById("syncClockBtn");
 const unpairBtn = document.getElementById("unpairBtn");
 const saveBtn = document.getElementById("saveBtn");
@@ -94,7 +93,6 @@ function clearLoading() {
 
 function updateConnectedState(connected) {
   connectBtn.classList.toggle("hidden", connected);
-  statusBtn.disabled = !connected;
   syncClockBtn.disabled = !connected;
   unpairBtn.disabled = !connected;
   saveBtn.disabled = !connected;
@@ -224,7 +222,7 @@ function renderIrrigationRows(entries = []) {
   irrigationRows.innerHTML = "";
   const list = entries.slice(0, 24);
   if (!list.length) {
-    irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
+    irrigationRows.appendChild(createIrrigationRow("00:00", 1, false));
     return;
   }
   list.forEach((entry) => {
@@ -304,12 +302,12 @@ function renderSocketCards() {
     `;
 
     const tbody = card.querySelector(".socket-rows");
-    const list = (socket.rows || []).slice(0, 24);
-    if (!list.length) {
-      tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
-    } else {
-      list.forEach((row) => tbody.appendChild(createSocketRow(row)));
-    }
+  const list = (socket.rows || []).slice(0, 24);
+  if (!list.length) {
+    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: false }));
+  } else {
+    list.forEach((row) => tbody.appendChild(createSocketRow(row)));
+  }
 
     socketCards.appendChild(card);
   });
@@ -613,16 +611,6 @@ connectBtn.addEventListener("click", async () => {
   }
 });
 
-statusBtn.addEventListener("click", async () => {
-  try {
-    setLoading("Atualizando status...");
-    await requestStatus();
-  } catch (error) {
-    clearLoading();
-    appendLog(`Erro: ${error.message}`);
-  }
-});
-
 syncClockBtn.addEventListener("click", async () => {
   try {
     setLoading("Sincronizando relógio...");
@@ -671,13 +659,13 @@ addIrrigationRowBtn.addEventListener("click", () => {
     window.alert("Limite de 24 horários atingido.");
     return;
   }
-  irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
+  irrigationRows.appendChild(createIrrigationRow("00:00", 1, false));
 });
 
 clearIrrigationRowsBtn.addEventListener("click", async () => {
   if (!window.confirm("Limpar horários da irrigação na tela?")) return;
   irrigationRows.innerHTML = "";
-  irrigationRows.appendChild(createIrrigationRow("00:00", 1, true));
+  irrigationRows.appendChild(createIrrigationRow("00:00", 1, false));
   try {
     await saveIrrigationSchedule();
   } catch (error) {
@@ -786,7 +774,7 @@ socketCards.addEventListener("click", async (event) => {
       window.alert("Limite de 24 linhas atingido.");
       return;
     }
-    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
+    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: false }));
     return;
   }
 
@@ -797,7 +785,7 @@ socketCards.addEventListener("click", async (event) => {
     const tbody = card.querySelector(".socket-rows");
     if (!tbody) return;
     tbody.innerHTML = "";
-    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: true }));
+    tbody.appendChild(createSocketRow({ title: "", start: "00:00", end: "00:00", enabled: false }));
     try {
       await saveSocket(socket);
     } catch (error) {
